@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./lms.db
+      - SECRET_KEY=super-secret-production-grade-key-for-jwt-signing-change-in-prod-12345
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/lms.db:/app/lms.db
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend

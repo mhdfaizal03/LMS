@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: learnflow-lms-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt && python manage.py seed
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: CLOUDINARY_CLOUD_NAME
+        value: ml_default
+      - key: CLOUDINARY_API_KEY
+        value: 764422355995382
+      - key: CLOUDINARY_API_SECRET
+        value: wzIDt73N9dHivDKEB1QcodZZNeU
+      - key: CLOUDINARY_UPLOAD_PRESET
+        value: ml_default
+      - key: SECRET_KEY
+        generateValue: true

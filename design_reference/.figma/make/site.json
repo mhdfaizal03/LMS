@@ -1,0 +1,10 @@
+{
+  "description": "Creates fully optimized websites adhering to UI/UX best practices, delivering seamless user experiences for businesses and designers.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
