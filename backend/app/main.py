@@ -31,14 +31,16 @@ def on_startup():
     seed_if_empty()
 
 
-# CORS configuration
+# CORS configuration - Allow all HTTPS & HTTP origins dynamically with credentials
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins in development
+    allow_origin_regex=r"^https?:\/\/.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
 
 # Mount static uploaded files
 os.makedirs(settings.UPLOAD_DIR, exist_ok=True)

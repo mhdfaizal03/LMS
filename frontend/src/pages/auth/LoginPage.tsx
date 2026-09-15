@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link, useLocation } from 'react-router-dom'
 import { Eye, EyeOff, GraduationCap, Loader2, AlertCircle } from 'lucide-react'
 import { useAuth, getRoleHome } from '../../context/AuthContext'
+import { API_BASE_URL } from '../../api/client'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -17,11 +18,11 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (!email) { setError('Email is required'); return }
+    if (!email.trim()) { setError('Email is required'); return }
     if (!password) { setError('Password is required'); return }
     setLoading(true)
     try {
-      const loggedUser = await login({ email, password })
+      const loggedUser = await login({ email: email.trim(), password })
       const requestedPath = (location.state as any)?.from?.pathname
       if (requestedPath && !['/login', '/register'].includes(requestedPath)) {
         navigate(requestedPath, { replace: true })
@@ -29,11 +30,20 @@ export default function LoginPage() {
         navigate(getRoleHome(loggedUser.role), { replace: true })
       }
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Invalid email or password. Please try again.')
+      if (err.response?.data?.detail) {
+        setError(err.response.data.detail)
+      } else if (err.code === 'ECONNABORTED' || err.message?.includes('timeout')) {
+        setError('Backend request timed out (Render free tier may be waking up). Please retry in 10 seconds.')
+      } else if (err.message === 'Network Error' || !err.response) {
+        setError(`Unable to connect to backend (${API_BASE_URL}). Check that Render is live and VITE_API_BASE_URL on Vercel matches your Render URL.`)
+      } else {
+        setError('Invalid email or password. Please try again.')
+      }
     } finally {
       setLoading(false)
     }
   }
+
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
