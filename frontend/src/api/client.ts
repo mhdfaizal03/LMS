@@ -1,27 +1,37 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
 // Automatically normalize base URL whether user inputs domain, domain with trailing slash, or full /api/v1 path
-const getBaseUrl = (): string => {
-  const envUrl = import.meta.env.VITE_API_BASE_URL?.trim();
-  if (!envUrl) return '/api/v1';
-  if (envUrl.endsWith('/api/v1')) return envUrl;
-  if (envUrl.endsWith('/')) return `${envUrl}api/v1`;
-  return `${envUrl}/api/v1`;
+export const normalizeApiUrl = (rawUrl?: string | null): string => {
+  if (!rawUrl) return '/api/v1';
+  let clean = rawUrl.trim();
+  if (clean.endsWith('/api/v1')) return clean;
+  if (clean.endsWith('/')) return `${clean}api/v1`;
+  return `${clean}/api/v1`;
 };
 
-export const API_BASE_URL = getBaseUrl();
+export const getApiBaseUrl = (): string => {
+  const custom = typeof window !== 'undefined' ? localStorage.getItem('custom_api_url') : null;
+  if (custom && custom.trim()) {
+    return normalizeApiUrl(custom);
+  }
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  return normalizeApiUrl(envUrl);
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000, // 30s timeout for live cloud endpoints
+  timeout: 45000, // 45s timeout for Render cold starts
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Request interceptor: attach auth bearer token
+// Request interceptor: attach auth bearer token and dynamic runtime baseURL
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
+    config.baseURL = getApiBaseUrl();
     const token = localStorage.getItem('token');
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -30,6 +40,7 @@ apiClient.interceptors.request.use(
   },
   (error: AxiosError) => Promise.reject(error)
 );
+
 
 // Response interceptor: handle 401 unauthorized & expired tokens
 apiClient.interceptors.response.use(
