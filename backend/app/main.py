@@ -12,6 +12,8 @@ from app.api.v1 import (
     student, instructor
 )
 
+from app.seed import seed_if_empty
+
 # Initialize database schema tables
 Base.metadata.create_all(bind=engine)
 
@@ -21,6 +23,13 @@ app = FastAPI(
     docs_url=f"{settings.API_V1_STR}/docs",
     redoc_url=f"{settings.API_V1_STR}/redoc"
 )
+
+@app.on_event("startup")
+def on_startup():
+    # Ensure database schema is created and demo data is seeded if database is fresh
+    Base.metadata.create_all(bind=engine)
+    seed_if_empty()
+
 
 # CORS configuration
 app.add_middleware(

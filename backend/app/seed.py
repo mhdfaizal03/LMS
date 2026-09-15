@@ -489,5 +489,26 @@ class UserCreate(BaseModel):
         db.close()
 
 
+def seed_if_empty():
+    """Seeds the database only if no users exist (safe for automatic server startup)."""
+    db = SessionLocal()
+    try:
+        user_count = db.query(User).count()
+        if user_count == 0:
+            print("⚡ Database is empty. Running auto-seeding...")
+            seed_database()
+        else:
+            print(f"✅ Database already initialized ({user_count} users found).")
+    except Exception as e:
+        print(f"⚠️ Auto-seed check encountered error: {e}")
+        try:
+            seed_database()
+        except Exception as inner_e:
+            print(f"❌ Auto-seed failed: {inner_e}")
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     seed_database()
+
