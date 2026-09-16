@@ -16,8 +16,11 @@ class UserRole(str, enum.Enum):
 
 class UserStatus(str, enum.Enum):
     ACTIVE = "active"
+    PENDING = "pending"
     INACTIVE = "inactive"
     SUSPENDED = "suspended"
+    REJECTED = "rejected"
+
 
 
 class CourseStatus(str, enum.Enum):

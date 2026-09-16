@@ -113,7 +113,8 @@ class LessonCreate(BaseModel):
     lesson_type: LessonType = LessonType.VIDEO
     content: Optional[str] = None
     video_url: Optional[str] = None
-    duration_seconds: int = 0
+    duration_seconds: Optional[int] = 0
+    duration_minutes: Optional[int] = None
     pdf_url: Optional[str] = None
     resource_url: Optional[str] = None
     is_preview: bool = False
@@ -127,10 +128,12 @@ class LessonUpdate(BaseModel):
     content: Optional[str] = None
     video_url: Optional[str] = None
     duration_seconds: Optional[int] = None
+    duration_minutes: Optional[int] = None
     pdf_url: Optional[str] = None
     resource_url: Optional[str] = None
     is_preview: Optional[bool] = None
     order: Optional[int] = None
+
 
 
 class LessonResponse(BaseModel):

@@ -3,6 +3,8 @@ import { LayoutDashboard, BookOpen, Users, ClipboardList, BarChart3, Settings, L
 import Sidebar from '../components/layout/Sidebar'
 import TopBar from '../components/layout/TopBar'
 import { useAuth } from '../context/AuthContext'
+import InstructorUnderReview from '../pages/instructor/InstructorUnderReview'
+
 
 const navItems = [
   { icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', to: '/instructor' },
@@ -39,6 +41,12 @@ export default function InstructorLayout() {
   if (!token || !user) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
+
+  // Intercept pending instructor applications
+  if (user.status === 'pending') {
+    return <InstructorUnderReview />
+  }
+
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50">

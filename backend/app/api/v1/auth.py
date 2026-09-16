@@ -23,6 +23,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
 
     # Do not allow arbitrary registration as admin/superadmin without invite
     role = user_in.role if user_in.role in [UserRole.STUDENT, UserRole.INSTRUCTOR] else UserRole.STUDENT
+    user_status = UserStatus.PENDING if role == UserRole.INSTRUCTOR else UserStatus.ACTIVE
 
     new_user = User(
         name=user_in.name,
@@ -32,7 +33,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         phone=user_in.phone,
         bio=user_in.bio,
         expertise=user_in.expertise,
-        status=UserStatus.ACTIVE,
+        status=user_status,
         last_login=datetime.utcnow()
     )
     db.add(new_user)
@@ -58,10 +59,20 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
             detail="Incorrect email or password."
         )
 
-    if user.status != UserStatus.ACTIVE:
+    if user.status == UserStatus.SUSPENDED:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Your account has been deactivated or suspended."
+            detail="Your account has been suspended by an administrator. Please contact support."
+        )
+    elif user.status == UserStatus.REJECTED:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your instructor application was reviewed and not approved at this time."
+        )
+    elif user.status == UserStatus.INACTIVE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is currently inactive."
         )
 
     user.last_login = datetime.utcnow()
@@ -73,6 +84,7 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
         token_type="bearer",
         user=UserResponse.model_validate(user)
     )
+
 
 
 @router.get("/me", response_model=UserResponse)

@@ -75,6 +75,10 @@ def create_lesson(
 
     max_order = db.query(Lesson).filter(Lesson.section_id == section_id).count()
 
+    dur = lesson_in.duration_seconds or 0
+    if lesson_in.duration_minutes is not None and lesson_in.duration_minutes > 0:
+        dur = lesson_in.duration_minutes * 60
+
     lesson = Lesson(
         section_id=section_id,
         title=lesson_in.title,
@@ -82,7 +86,7 @@ def create_lesson(
         lesson_type=lesson_in.lesson_type,
         content=lesson_in.content,
         video_url=lesson_in.video_url,
-        duration_seconds=lesson_in.duration_seconds,
+        duration_seconds=dur,
         pdf_url=lesson_in.pdf_url,
         resource_url=lesson_in.resource_url,
         is_preview=lesson_in.is_preview,
@@ -92,6 +96,7 @@ def create_lesson(
     db.commit()
     db.refresh(lesson)
     return LessonResponse.model_validate(lesson)
+
 
 
 @router.put("/{lesson_id}", response_model=LessonResponse)

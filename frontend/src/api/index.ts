@@ -153,6 +153,12 @@ export const adminApi = {
     apiClient.post<User>('/users', data).then((res) => res.data),
   updateUser: (userId: number, data: any) =>
     apiClient.put<User>(`/users/${userId}`, data).then((res) => res.data),
+  approveInstructor: (userId: number) =>
+    apiClient.post<User>(`/users/${userId}/approve`).then((res) => res.data),
+  rejectInstructor: (userId: number) =>
+    apiClient.post<User>(`/users/${userId}/reject`).then((res) => res.data),
+  changeUserStatus: (userId: number, status: string) =>
+    apiClient.post<User>(`/users/${userId}/status?status_in=${status}`).then((res) => res.data),
   deleteUser: (userId: number) =>
     apiClient.delete(`/users/${userId}`).then((res) => res.data),
   getAuditLogs: (params?: { skip?: number; limit?: number; action?: string }) =>
@@ -160,6 +166,7 @@ export const adminApi = {
   getSystemSummary: () =>
     apiClient.get('/admin/system-summary').then((res) => res.data),
 };
+
 
 // File Upload API
 export const uploadApi = {

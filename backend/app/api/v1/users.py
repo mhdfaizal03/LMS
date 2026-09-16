@@ -132,6 +132,96 @@ def update_user_by_admin(
     return UserResponse.model_validate(user)
 
 
+@router.post("/{user_id}/approve", response_model=UserResponse)
+def approve_instructor(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_admin_user)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.status = UserStatus.ACTIVE
+    db.commit()
+    db.refresh(user)
+
+    log = AuditLog(
+        user_id=admin_user.id,
+        action="APPROVE_INSTRUCTOR",
+        target_type="user",
+        target_id=str(user.id),
+        details={"email": user.email, "status": "active"}
+    )
+    db.add(log)
+    db.commit()
+
+    return UserResponse.model_validate(user)
+
+
+@router.post("/{user_id}/reject", response_model=UserResponse)
+def reject_instructor(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_admin_user)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.status = UserStatus.REJECTED
+    db.commit()
+    db.refresh(user)
+
+    log = AuditLog(
+        user_id=admin_user.id,
+        action="REJECT_INSTRUCTOR",
+        target_type="user",
+        target_id=str(user.id),
+        details={"email": user.email, "status": "rejected"}
+    )
+    db.add(log)
+    db.commit()
+
+    return UserResponse.model_validate(user)
+
+
+@router.post("/{user_id}/status", response_model=UserResponse)
+def change_user_status(
+    user_id: int,
+    status_in: str = Query(..., description="active, pending, suspended, rejected, inactive"),
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(get_admin_user)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if user.role == UserRole.SUPERADMIN and admin_user.role != UserRole.SUPERADMIN:
+        raise HTTPException(status_code=403, detail="Cannot alter superadmin status.")
+
+    try:
+        user.status = UserStatus(status_in.lower())
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid status: {status_in}")
+
+    db.commit()
+    db.refresh(user)
+
+    log = AuditLog(
+        user_id=admin_user.id,
+        action="CHANGE_USER_STATUS",
+        target_type="user",
+        target_id=str(user.id),
+        details={"email": user.email, "status": user.status}
+    )
+    db.add(log)
+    db.commit()
+
+    return UserResponse.model_validate(user)
+
+
+
 @router.delete("/{user_id}")
 def delete_user_by_admin(
     user_id: int,
