@@ -15,8 +15,13 @@ export const getApiBaseUrl = (): string => {
     return normalizeApiUrl(custom);
   }
   const envUrl = import.meta.env.VITE_API_BASE_URL;
-  return normalizeApiUrl(envUrl);
+  if (envUrl && envUrl.trim()) {
+    return normalizeApiUrl(envUrl);
+  }
+  // Default production Render backend
+  return 'https://lms-backend-w9za.onrender.com/api/v1';
 };
+
 
 export const API_BASE_URL = getApiBaseUrl();
 
