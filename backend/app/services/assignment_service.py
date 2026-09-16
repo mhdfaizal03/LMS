@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 from sqlalchemy.orm import Session
 from app.models import (
@@ -28,7 +28,7 @@ class AssignmentService:
             description=data.description,
             instructions=data.instructions,
             deadline=data.deadline,
-            max_marks=data.max_marks,
+            max_marks=data.max_marks or 100.0,
             resource_url=data.resource_url
         )
         db.add(assignment)
@@ -63,7 +63,7 @@ class AssignmentService:
                 user_id=user_id,
                 submission_text=data.submission_text,
                 file_url=data.file_url,
-                submitted_at=datetime.utcnow(),
+                submitted_at=datetime.now(timezone.utc),
                 status=SubmissionStatus.SUBMITTED
             )
             db.add(submission)
@@ -71,7 +71,7 @@ class AssignmentService:
             submission.submission_text = data.submission_text
             if data.file_url:
                 submission.file_url = data.file_url
-            submission.submitted_at = datetime.utcnow()
+            submission.submitted_at = datetime.now(timezone.utc)
             submission.status = SubmissionStatus.RESUBMITTED
 
         db.commit()
@@ -107,7 +107,7 @@ class AssignmentService:
         submission.grade = grade_data.grade
         submission.feedback = grade_data.feedback
         submission.graded_by = instructor_id
-        submission.graded_at = datetime.utcnow()
+        submission.graded_at = datetime.now(timezone.utc)
         submission.status = SubmissionStatus.GRADED
         db.commit()
         db.refresh(submission)

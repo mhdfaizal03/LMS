@@ -1,10 +1,14 @@
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import (
     Column, Integer, String, Text, Boolean, Float, DateTime, ForeignKey, Enum as SQLEnum, JSON, Index
 )
 from sqlalchemy.orm import relationship
 from app.core.database import Base
+
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 
 class UserRole(str, enum.Enum):
@@ -73,8 +77,8 @@ class User(Base):
     bio = Column(Text, nullable=True)
     expertise = Column(String(255), nullable=True)
     status = Column(SQLEnum(UserStatus), default=UserStatus.ACTIVE, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
     last_login = Column(DateTime, nullable=True)
 
     # Relationships
@@ -98,7 +102,7 @@ class Category(Base):
     icon = Column(String(100), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     display_order = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
     courses = relationship("Course", back_populates="category")
 
@@ -123,8 +127,8 @@ class Course(Base):
     learning_objectives = Column(JSON, default=list, nullable=False)  # List of strings
     requirements = Column(JSON, default=list, nullable=False)         # List of strings
     tags = Column(JSON, default=list, nullable=False)                 # List of strings
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
     # Relationships
     instructor = relationship("User", back_populates="courses_taught")
@@ -143,8 +147,8 @@ class Section(Base):
     title = Column(String(200), nullable=False)
     description = Column(Text, nullable=True)
     order = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
     course = relationship("Course", back_populates="sections")
     lessons = relationship("Lesson", back_populates="section", order_by="Lesson.order", cascade="all, delete-orphan")
@@ -165,8 +169,8 @@ class Lesson(Base):
     resource_url = Column(String(500), nullable=True)
     is_preview = Column(Boolean, default=False, nullable=False)
     order = Column(Integer, default=0, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
     section = relationship("Section", back_populates="lessons")
     progress_records = relationship("LessonProgress", back_populates="lesson", cascade="all, delete-orphan")
@@ -180,11 +184,11 @@ class Enrollment(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
-    enrolled_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    enrolled_at = Column(DateTime, default=utc_now, nullable=False)
     status = Column(String(50), default="active", nullable=False)  # active, completed, dropped
     completed_at = Column(DateTime, nullable=True)
     progress_percentage = Column(Float, default=0.0, nullable=False)
-    last_accessed_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    last_accessed_at = Column(DateTime, default=utc_now, nullable=False)
     last_lesson_id = Column(Integer, ForeignKey("lessons.id", ondelete="SET NULL"), nullable=True)
 
     __table_args__ = (
@@ -206,7 +210,7 @@ class LessonProgress(Base):
     is_completed = Column(Boolean, default=False, nullable=False)
     last_position_seconds = Column(Integer, default=0, nullable=False)
     completed_at = Column(DateTime, nullable=True)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
     __table_args__ = (
         Index("idx_user_lesson_progress", "user_id", "lesson_id", unique=True),
@@ -229,8 +233,8 @@ class Quiz(Base):
     passing_score = Column(Float, default=70.0, nullable=False)  # In percentage
     max_attempts = Column(Integer, default=3, nullable=False)
     is_randomized = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
     lesson = relationship("Lesson", back_populates="quiz")
     questions = relationship("Question", back_populates="quiz", order_by="Question.order", cascade="all, delete-orphan")
@@ -264,7 +268,7 @@ class QuizAttempt(Base):
     percentage = Column(Float, default=0.0, nullable=False)
     is_passed = Column(Boolean, default=False, nullable=False)
     attempt_number = Column(Integer, default=1, nullable=False)
-    started_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    started_at = Column(DateTime, default=utc_now, nullable=False)
     completed_at = Column(DateTime, nullable=True)
 
     quiz = relationship("Quiz", back_populates="attempts")
@@ -298,8 +302,8 @@ class Assignment(Base):
     deadline = Column(DateTime, nullable=True)
     max_marks = Column(Float, default=100.0, nullable=False)
     resource_url = Column(String(500), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
     lesson = relationship("Lesson", back_populates="assignment")
     submissions = relationship("AssignmentSubmission", back_populates="assignment", cascade="all, delete-orphan")
@@ -313,7 +317,7 @@ class AssignmentSubmission(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     submission_text = Column(Text, nullable=True)
     file_url = Column(String(500), nullable=True)
-    submitted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    submitted_at = Column(DateTime, default=utc_now, nullable=False)
     grade = Column(Float, nullable=True)
     feedback = Column(Text, nullable=True)
     graded_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
@@ -332,7 +336,7 @@ class Certificate(Base):
     certificate_code = Column(String(64), unique=True, index=True, nullable=False)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
-    issued_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    issued_at = Column(DateTime, default=utc_now, nullable=False)
     student_name = Column(String(150), nullable=False)
     course_name = Column(String(255), nullable=False)
     instructor_name = Column(String(150), nullable=False)
@@ -356,7 +360,7 @@ class Notification(Base):
     notification_type = Column(String(50), default="info", nullable=False)
     link_url = Column(String(500), nullable=True)
     is_read = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
 
     user = relationship("User", back_populates="notifications")
 
@@ -370,8 +374,8 @@ class Announcement(Base):
     title = Column(String(200), nullable=False)
     content = Column(Text, nullable=False)
     is_pinned = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
 
     course = relationship("Course", back_populates="announcements")
     author = relationship("User", back_populates="announcements")
@@ -387,4 +391,4 @@ class AuditLog(Base):
     target_id = Column(String(50), nullable=True)
     details = Column(JSON, nullable=True)
     ip_address = Column(String(50), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)

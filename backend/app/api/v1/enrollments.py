@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -19,14 +19,14 @@ def get_my_enrolled_courses(
     enrollments = (
         db.query(Enrollment)
         .filter(Enrollment.user_id == current_user.id)
-        .order_by(Enrollment.last_accessed_at.desc())
+        .order_by(Enrollment.enrolled_at.desc())
         .all()
     )
     return [EnrollmentResponse.model_validate(e) for e in enrollments]
 
 
 @router.post("/course/{course_id}", response_model=EnrollmentResponse, status_code=status.HTTP_201_CREATED)
-def enroll_in_course(
+def enroll_course(
     course_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -38,7 +38,7 @@ def enroll_in_course(
     if course.status != CourseStatus.PUBLISHED:
         raise HTTPException(status_code=400, detail="Cannot enroll in an unpublished course.")
 
-    # Check if already enrolled
+    # Check already enrolled
     existing = (
         db.query(Enrollment)
         .filter(Enrollment.user_id == current_user.id, Enrollment.course_id == course_id)
@@ -57,8 +57,8 @@ def enroll_in_course(
         course_id=course_id,
         status="active",
         progress_percentage=0.0,
-        enrolled_at=datetime.utcnow(),
-        last_accessed_at=datetime.utcnow(),
+        enrolled_at=datetime.now(timezone.utc),
+        last_accessed_at=datetime.now(timezone.utc),
         last_lesson_id=first_lesson
     )
     db.add(enrollment)

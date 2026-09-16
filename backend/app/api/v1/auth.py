@@ -1,10 +1,10 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import verify_password, hash_password, create_access_token
 from app.core.dependencies import get_current_user
-from app.models import User, UserRole, UserStatus, AuditLog
+from app.models import User, UserRole, UserStatus
 from app.schemas import (
     UserCreate, UserLogin, TokenResponse, UserResponse, UserUpdate, PasswordChange
 )
@@ -18,11 +18,20 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="An account with this email address already exists."
+            detail="A user with this email address already exists."
         )
 
-    # Do not allow arbitrary registration as admin/superadmin without invite
-    role = user_in.role if user_in.role in [UserRole.STUDENT, UserRole.INSTRUCTOR] else UserRole.STUDENT
+    # Normalize role
+    role = UserRole.STUDENT
+    if user_in.role:
+        try:
+            role = UserRole(user_in.role.lower())
+        except ValueError:
+            role = UserRole.STUDENT
+
+    # Role-based onboarding status:
+    # Instructors start in PENDING state requiring admin approval
+    # Students start in ACTIVE state
     user_status = UserStatus.PENDING if role == UserRole.INSTRUCTOR else UserStatus.ACTIVE
 
     new_user = User(
@@ -34,7 +43,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         bio=user_in.bio,
         expertise=user_in.expertise,
         status=user_status,
-        last_login=datetime.utcnow()
+        last_login=datetime.now(timezone.utc)
     )
     db.add(new_user)
     db.commit()
@@ -75,7 +84,7 @@ def login(login_data: UserLogin, db: Session = Depends(get_db)):
             detail="Your account is currently inactive."
         )
 
-    user.last_login = datetime.utcnow()
+    user.last_login = datetime.now(timezone.utc)
     db.commit()
 
     token = create_access_token(user.id)

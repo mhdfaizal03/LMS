@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy.orm import Session
 from app.models import Certificate, User, Course
@@ -36,7 +36,7 @@ class CertificateService:
             certificate_code=code,
             user_id=user_id,
             course_id=course_id,
-            issued_at=datetime.utcnow(),
+            issued_at=datetime.now(timezone.utc),
             student_name=user.name,
             course_name=course.title,
             instructor_name=instructor_name,

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from sqlalchemy.orm import Session
 from app.models import (
@@ -81,8 +81,8 @@ class QuizService:
             user_id=user_id,
             max_score=total_marks,
             attempt_number=previous_attempts + 1,
-            started_at=datetime.utcnow(),
-            completed_at=datetime.utcnow()
+            started_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc)
         )
         db.add(attempt)
         db.commit()

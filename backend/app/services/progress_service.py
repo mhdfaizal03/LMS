@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 from sqlalchemy.orm import Session
 from app.models import (
@@ -22,7 +22,7 @@ class ProgressService:
 
         course_id = lesson.section.course_id
 
-        # Find or create progress record
+        # Update or create progress
         progress = (
             db.query(LessonProgress)
             .filter(LessonProgress.user_id == user_id, LessonProgress.lesson_id == lesson_id)
@@ -36,18 +36,18 @@ class ProgressService:
                 course_id=course_id,
                 is_completed=is_completed,
                 last_position_seconds=last_position_seconds,
-                completed_at=datetime.utcnow() if is_completed else None
+                completed_at=datetime.now(timezone.utc) if is_completed else None
             )
             db.add(progress)
         else:
             if is_completed and not progress.is_completed:
                 progress.is_completed = True
-                progress.completed_at = datetime.utcnow()
+                progress.completed_at = datetime.now(timezone.utc)
             elif not is_completed:
                 progress.is_completed = False
                 progress.completed_at = None
             progress.last_position_seconds = last_position_seconds
-            progress.updated_at = datetime.utcnow()
+            progress.updated_at = datetime.now(timezone.utc)
 
         db.commit()
         db.refresh(progress)
@@ -96,14 +96,14 @@ class ProgressService:
             percentage = round((completed_count / total_lessons) * 100.0, 1)
 
         enrollment.progress_percentage = percentage
-        enrollment.last_accessed_at = datetime.utcnow()
+        enrollment.last_accessed_at = datetime.now(timezone.utc)
         if last_lesson_id:
             enrollment.last_lesson_id = last_lesson_id
 
         if percentage >= 100.0:
             enrollment.status = "completed"
             if not enrollment.completed_at:
-                enrollment.completed_at = datetime.utcnow()
+                enrollment.completed_at = datetime.now(timezone.utc)
             # Issue certificate automatically
             certificate_service.issue_certificate(db, user_id, course_id)
         else:

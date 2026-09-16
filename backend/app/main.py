@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 import os
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,18 +18,21 @@ from app.seed import seed_if_empty
 # Initialize database schema tables
 Base.metadata.create_all(bind=engine)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    seed_if_empty()
+    yield
+
+
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     docs_url=f"{settings.API_V1_STR}/docs",
-    redoc_url=f"{settings.API_V1_STR}/redoc"
+    redoc_url=f"{settings.API_V1_STR}/redoc",
+    lifespan=lifespan
 )
-
-@app.on_event("startup")
-def on_startup():
-    # Ensure database schema is created and demo data is seeded if database is fresh
-    Base.metadata.create_all(bind=engine)
-    seed_if_empty()
 
 
 # CORS configuration - Allow all HTTPS & HTTP origins dynamically with credentials
