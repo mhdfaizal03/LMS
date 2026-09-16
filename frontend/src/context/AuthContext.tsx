@@ -16,8 +16,10 @@ interface AuthContextType {
   register: (data: { name: string; email: string; password: string; role?: string }) => Promise<User>;
   logout: () => void;
   updateUserProfile: (data: Partial<User>) => Promise<User>;
+  refreshUser: () => Promise<User | null>;
   getRoleHome: (role?: string) => string;
 }
+
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -84,6 +86,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return updated;
   };
 
+  const refreshUser = async (): Promise<User | null> => {
+    try {
+      const profile = await authApi.getMe();
+      setUser(profile);
+      localStorage.setItem('user', JSON.stringify(profile));
+      return profile;
+    } catch (err) {
+      console.error('Failed to refresh user profile:', err);
+      return null;
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -94,12 +108,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         register,
         logout,
         updateUserProfile,
+        refreshUser,
         getRoleHome,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
+
 };
 
 export const useAuth = () => {
