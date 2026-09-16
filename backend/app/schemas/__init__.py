@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Union
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, model_validator
 from app.models import (
     UserRole, UserStatus, CourseStatus, DifficultyLevel, LessonType, QuestionType, SubmissionStatus
 )
@@ -188,7 +188,9 @@ class CourseBase(BaseModel):
     title: str = Field(..., min_length=3, max_length=255)
     short_description: Optional[str] = None
     full_description: Optional[str] = None
+    description: Optional[str] = None
     thumbnail: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     category_id: Optional[int] = None
     difficulty_level: DifficultyLevel = DifficultyLevel.ALL_LEVELS
     language: str = "English"
@@ -200,6 +202,23 @@ class CourseBase(BaseModel):
     requirements: List[str] = []
     tags: List[str] = []
 
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Map description -> full_description
+            if data.get('description') and not data.get('full_description'):
+                data['full_description'] = data['description']
+            # Map thumbnail_url -> thumbnail
+            if data.get('thumbnail_url') and not data.get('thumbnail'):
+                data['thumbnail'] = data['thumbnail_url']
+            # Normalize difficulty_level string e.g. "Advanced" -> "advanced", "All Levels" -> "all_levels"
+            diff = data.get('difficulty_level')
+            if isinstance(diff, str):
+                normalized = diff.strip().lower().replace(' ', '_')
+                data['difficulty_level'] = normalized
+        return data
+
 
 class CourseCreate(CourseBase):
     pass
@@ -209,7 +228,9 @@ class CourseUpdate(BaseModel):
     title: Optional[str] = None
     short_description: Optional[str] = None
     full_description: Optional[str] = None
+    description: Optional[str] = None
     thumbnail: Optional[str] = None
+    thumbnail_url: Optional[str] = None
     category_id: Optional[int] = None
     difficulty_level: Optional[DifficultyLevel] = None
     language: Optional[str] = None
@@ -220,6 +241,20 @@ class CourseUpdate(BaseModel):
     learning_objectives: Optional[List[str]] = None
     requirements: Optional[List[str]] = None
     tags: Optional[List[str]] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def normalize_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if data.get('description') and not data.get('full_description'):
+                data['full_description'] = data['description']
+            if data.get('thumbnail_url') and not data.get('thumbnail'):
+                data['thumbnail'] = data['thumbnail_url']
+            diff = data.get('difficulty_level')
+            if isinstance(diff, str):
+                normalized = diff.strip().lower().replace(' ', '_')
+                data['difficulty_level'] = normalized
+        return data
 
 
 class CourseResponse(CourseBase):

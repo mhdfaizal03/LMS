@@ -165,24 +165,30 @@ export default function CourseBuilder() {
   }
 
   // Save course metadata
-  const handleSaveCourse = async (publish: boolean = false) => {
+  const handleSaveCourse = async (publish: boolean = false, andAdvance: boolean = false) => {
     if (!title.trim()) {
       alert('Course title is required')
       return
     }
     try {
       setSaving(true)
-      const payload: Partial<Course> = {
+      const formattedDiff = (difficultyLevel || 'beginner')
+        .toLowerCase()
+        .replace(/\s+/g, '_')
+
+      const payload: any = {
         title: title.trim(),
         slug: slug.trim() || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
         description: description.trim(),
+        full_description: description.trim(),
         short_description: shortDescription.trim() || description.substring(0, 150),
         category_id: categoryId ? Number(categoryId) : undefined,
-        difficulty_level: difficultyLevel,
-        price: isFree ? 0 : Number(price),
+        difficulty_level: formattedDiff,
+        price: isFree ? 0 : Number(price) || 0,
         is_free: isFree,
-        thumbnail_url: thumbnailUrl,
-        status: publish ? 'published' : status,
+        thumbnail: thumbnailUrl || undefined,
+        thumbnail_url: thumbnailUrl || undefined,
+        status: publish ? 'published' : (status || 'draft'),
       }
 
       let saved: Course
@@ -193,10 +199,25 @@ export default function CourseBuilder() {
         setCourseId(saved.id)
       }
       setStatus(saved.status || 'draft')
-      alert(publish ? '🎉 Course successfully published!' : 'Course draft saved successfully!')
+      if (publish) {
+        alert('🎉 Course successfully published!')
+      } else if (andAdvance) {
+        setActiveStep('curriculum')
+      } else {
+        alert('Course draft saved successfully!')
+      }
     } catch (err: any) {
       console.error('Course save error:', err)
-      alert(err.response?.data?.detail || 'Failed to save course. Please verify input fields.')
+      const detail = err.response?.data?.detail
+      let errorMsg = 'Failed to save course. Please verify input fields.'
+      if (typeof detail === 'string') {
+        errorMsg = detail
+      } else if (Array.isArray(detail)) {
+        errorMsg = detail.map((d: any) => `${d.loc?.join('.') || 'field'}: ${d.msg}`).join('\n')
+      } else if (detail && typeof detail === 'object') {
+        errorMsg = JSON.stringify(detail)
+      }
+      alert(errorMsg)
     } finally {
       setSaving(false)
     }
@@ -533,10 +554,10 @@ export default function CourseBuilder() {
                       onChange={e => setDifficultyLevel(e.target.value)}
                       className="w-full h-10 border border-slate-300 rounded-xl px-3 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                     >
-                      <option value="Beginner">Beginner</option>
-                      <option value="Intermediate">Intermediate</option>
-                      <option value="Advanced">Advanced</option>
-                      <option value="All Levels">All Levels</option>
+                      <option value="beginner">Beginner</option>
+                      <option value="intermediate">Intermediate</option>
+                      <option value="advanced">Advanced</option>
+                      <option value="all_levels">All Levels</option>
                     </select>
                   </div>
                 </div>
@@ -618,7 +639,7 @@ export default function CourseBuilder() {
               )}
             </div>
 
-            <Button onClick={() => handleSaveCourse(false)} className="w-full py-3 font-bold">
+            <Button onClick={() => handleSaveCourse(false, true)} disabled={saving} className="w-full py-3 font-bold">
               Save & Continue to Curriculum
             </Button>
           </div>
