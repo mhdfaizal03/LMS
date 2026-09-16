@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Star, Users, Clock, BarChart2, Play, FileText, HelpCircle, CheckCircle, ChevronDown, Loader2, BookOpen, Sparkles, FileSpreadsheet } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
+import { resolveMediaUrl } from '../../utils/media'
 import { courseApi, enrollmentApi } from '../../api'
 import { Course, Section, Lesson } from '../../types'
 
@@ -99,7 +100,7 @@ export default function CourseDetail() {
       <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-md">
         <div className="relative">
           {course.thumbnail_url ? (
-            <img src={course.thumbnail_url} alt={course.title} className="w-full h-56 object-cover opacity-25" />
+            <img src={resolveMediaUrl(course.thumbnail_url)} alt={course.title} className="w-full h-56 object-cover opacity-25" />
           ) : (
             <div className="w-full h-56 bg-gradient-to-r from-blue-900 via-indigo-950 to-slate-900 opacity-90" />
           )}

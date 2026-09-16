@@ -109,6 +109,8 @@ export const assignmentApi = {
     apiClient.post<AssignmentSubmission>(`/assignments/${assignmentId}/submit`, data).then((res) => res.data),
   listSubmissions: (assignmentId: number) =>
     apiClient.get<AssignmentSubmission[]>(`/assignments/${assignmentId}/submissions`).then((res) => res.data),
+  getInstructorSubmissions: (courseId?: number) =>
+    apiClient.get<AssignmentSubmission[]>(`/instructor/assignments/submissions${courseId ? `?course_id=${courseId}` : ''}`).then((res) => res.data),
   gradeSubmission: (submissionId: number, data: { grade: number; feedback?: string }) =>
     apiClient.post<AssignmentSubmission>(`/assignments/submissions/${submissionId}/grade`, data).then((res) => res.data),
 };

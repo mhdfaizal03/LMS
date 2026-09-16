@@ -24,8 +24,14 @@ class Settings(BaseSettings):
 
     # File storage
     UPLOAD_DIR: str = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "uploads")
-    MAX_UPLOAD_SIZE_MB: int = 50
-    ALLOWED_EXTENSIONS: List[str] = ["jpg", "jpeg", "png", "webp", "pdf", "mp4", "webm", "zip", "doc", "docx"]
+    MAX_UPLOAD_SIZE_MB: int = 250
+    ALLOWED_EXTENSIONS: List[str] = [
+        "jpg", "jpeg", "png", "webp", "svg", "gif",
+        "mp4", "webm", "mov", "mkv", "avi", "m4v",
+        "mp3", "wav", "ogg", "aac", "m4a", "flac",
+        "pdf", "doc", "docx", "ppt", "pptx", "xls", "xlsx", "txt",
+        "zip", "rar", "tar", "gz", "7z"
+    ]
 
     # Cloudinary storage
     CLOUDINARY_CLOUD_NAME: str = "ml_default"

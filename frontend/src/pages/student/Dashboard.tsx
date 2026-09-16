@@ -4,6 +4,7 @@ import { Play, BookOpen, Clock, Award, ClipboardList, ChevronRight, CheckCircle,
 import ProgressBar from '../../components/ui/ProgressBar'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
+import { resolveMediaUrl } from '../../utils/media'
 import { enrollmentApi, analyticsApi } from '../../api'
 import { Enrollment, StudentDashboardStats } from '../../types'
 
@@ -59,7 +60,7 @@ export default function StudentDashboard() {
         <div className="bg-slate-900 rounded-2xl overflow-hidden relative shadow-lg">
           {primaryEnrollment.course?.thumbnail_url && (
             <img
-              src={primaryEnrollment.course.thumbnail_url}
+              src={resolveMediaUrl(primaryEnrollment.course.thumbnail_url)}
               alt=""
               className="absolute inset-0 w-full h-full object-cover opacity-20"
             />
@@ -148,7 +149,7 @@ export default function StudentDashboard() {
                   >
                     {e.course?.thumbnail_url ? (
                       <img
-                        src={e.course.thumbnail_url}
+                        src={resolveMediaUrl(e.course.thumbnail_url)}
                         alt={e.course.title}
                         className="w-14 h-10 object-cover rounded-lg bg-slate-100 flex-shrink-0"
                       />

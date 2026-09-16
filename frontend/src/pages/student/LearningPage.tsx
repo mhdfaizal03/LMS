@@ -2,16 +2,19 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, CheckCircle, Play, FileText, HelpCircle,
-  X, Menu, BookOpen, Volume2, Upload, Send, Loader2, Award, Check
+  X, Menu, BookOpen, Volume2, Upload, Send, Loader2, Award, Check,
+  MessageSquare, Download, Paperclip, Sparkles, BookCheck, Clock
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import ProgressBar from '../../components/ui/ProgressBar'
 import Badge from '../../components/ui/Badge'
+import { UniversalPlayer } from '../../components/player/UniversalPlayer'
 import { courseApi, enrollmentApi, quizApi, assignmentApi, uploadApi } from '../../api'
 import { Course, Section, Lesson, Quiz, Assignment } from '../../types'
 
 export default function LearningPage() {
-  const { courseId } = useParams<{ courseId: string }>()
+  const { courseId, id } = useParams<{ courseId?: string; id?: string }>()
+  const activeCourseId = courseId || id
   const navigate = useNavigate()
 
   const [course, setCourse] = useState<Course | null>(null)
@@ -20,6 +23,15 @@ export default function LearningPage() {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(true)
   const [loading, setLoading] = useState<boolean>(true)
   const [markingComplete, setMarkingComplete] = useState<boolean>(false)
+
+  // Tabs state
+  const [activeTab, setActiveTab] = useState<'overview' | 'notes' | 'resources' | 'qa'>('overview')
+  const [studentNotes, setStudentNotes] = useState<string>('')
+  const [qaQuestions, setQaQuestions] = useState<Array<{ id: number; author: string; text: string; time: string; replies: number }>>([
+    { id: 1, author: 'Alex Johnson', text: 'Can this architecture pattern scale with heavy load?', time: '2 hours ago', replies: 1 },
+    { id: 2, author: 'Dev Sarah', text: 'Where can I find the starter configuration file for this module?', time: '1 day ago', replies: 2 }
+  ])
+  const [newQuestionText, setNewQuestionText] = useState('')
 
   // Quiz state
   const [quiz, setQuiz] = useState<Quiz | null>(null)
@@ -38,12 +50,12 @@ export default function LearningPage() {
   useEffect(() => {
     let active = true
     const loadCourseData = async () => {
-      if (!courseId) return
+      if (!activeCourseId) return
       try {
         setLoading(true)
         const [cData, progData] = await Promise.allSettled([
-          courseApi.getCourseDetail(courseId),
-          enrollmentApi.getCourseProgress(Number(courseId)),
+          courseApi.getCourseDetail(activeCourseId),
+          enrollmentApi.getCourseProgress(Number(activeCourseId)),
         ])
 
         if (active && cData.status === 'fulfilled' && cData.value) {
@@ -64,7 +76,22 @@ export default function LearningPage() {
     }
     loadCourseData()
     return () => { active = false }
-  }, [courseId])
+  }, [activeCourseId])
+
+  // Load student notes from localStorage per lesson
+  useEffect(() => {
+    if (currentLesson && activeCourseId) {
+      const saved = localStorage.getItem(`notes_${activeCourseId}_${currentLesson.id}`) || ''
+      setStudentNotes(saved)
+    }
+  }, [currentLesson, activeCourseId])
+
+  const handleSaveNotes = (val: string) => {
+    setStudentNotes(val)
+    if (currentLesson && activeCourseId) {
+      localStorage.setItem(`notes_${activeCourseId}_${currentLesson.id}`, val)
+    }
+  }
 
   // Load lesson details (quizzes or assignments) when current lesson changes
   useEffect(() => {
@@ -100,7 +127,7 @@ export default function LearningPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[500px] gap-3 bg-slate-900 text-white -m-6 h-[calc(100vh-3.5rem)]">
+      <div className="flex flex-col items-center justify-center min-h-[500px] gap-3 bg-slate-950 text-white -m-6 h-[calc(100vh-3.5rem)]">
         <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
         <p className="text-sm text-slate-400">Loading course curriculum and stream player...</p>
       </div>
@@ -112,6 +139,7 @@ export default function LearningPage() {
   const currentIndex = allLessons.findIndex(l => l.id === currentLesson?.id)
   const doneCount = completedLessonIds.size
   const progressPct = allLessons.length > 0 ? Math.round((doneCount / allLessons.length) * 100) : 0
+  const isAllComplete = progressPct === 100 || (allLessons.length > 0 && doneCount >= allLessons.length)
 
   const handleMarkCompleted = async () => {
     if (!currentLesson) return
@@ -132,6 +160,12 @@ export default function LearningPage() {
     }
   }
 
+  const handleVideoEnded = () => {
+    if (currentLesson && !completedLessonIds.has(currentLesson.id)) {
+      handleMarkCompleted()
+    }
+  }
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -141,6 +175,7 @@ export default function LearningPage() {
       setSubmittedFileUrl(res.url)
     } catch (err) {
       console.error('Upload error:', err)
+      alert('Failed to upload assignment file.')
     } finally {
       setSubmittingFile(false)
     }
@@ -187,6 +222,16 @@ export default function LearningPage() {
     }
   }
 
+  const handleAddQuestion = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!newQuestionText.trim()) return
+    setQaQuestions(prev => [
+      { id: Date.now(), author: 'You', text: newQuestionText.trim(), time: 'Just now', replies: 0 },
+      ...prev
+    ])
+    setNewQuestionText('')
+  }
+
   const isCurrentDone = currentLesson ? completedLessonIds.has(currentLesson.id) : false
 
   return (
@@ -204,7 +249,7 @@ export default function LearningPage() {
               className="flex items-center gap-2 text-white hover:text-blue-400 transition-colors truncate max-w-[220px]"
             >
               <BookOpen className="w-4 h-4 text-blue-500 flex-shrink-0" />
-              <span className="text-sm font-semibold truncate">{course?.title || 'Course'}</span>
+              <span className="text-sm font-semibold truncate">{course?.title || 'Course Curriculum'}</span>
             </Link>
             <button
               onClick={() => setSidebarOpen(false)}
@@ -214,9 +259,14 @@ export default function LearningPage() {
             </button>
           </div>
           <ProgressBar value={progressPct} color="bg-blue-500" showLabel />
-          <p className="text-xs text-slate-400 mt-1.5">
-            {doneCount} of {allLessons.length} lessons completed
-          </p>
+          <div className="flex items-center justify-between mt-1.5 text-xs text-slate-400">
+            <span>{doneCount} of {allLessons.length} completed</span>
+            {isAllComplete && (
+              <span className="text-emerald-400 font-semibold flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> Completed
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Section and lesson list */}
@@ -265,9 +315,22 @@ export default function LearningPage() {
             </div>
           ))}
         </div>
+
+        {/* Certificate claim banner in sidebar if completed */}
+        {isAllComplete && (
+          <div className="p-4 bg-gradient-to-tr from-emerald-950 to-teal-900 border-t border-emerald-800/60">
+            <Link
+              to="/student/certificates"
+              className="flex items-center gap-2 text-xs font-bold text-emerald-300 hover:text-white transition-colors"
+            >
+              <Award className="w-5 h-5 text-emerald-400 flex-shrink-0" />
+              <span>Claim Course Certificate</span>
+            </Link>
+          </div>
+        )}
       </div>
 
-      {/* Main player area */}
+      {/* Main player & content area */}
       <div className="flex-1 flex flex-col min-w-0 bg-slate-950">
         {/* Top header bar */}
         <div className="h-14 border-b border-slate-800 px-5 flex items-center justify-between flex-shrink-0 bg-slate-900/60">
@@ -281,7 +344,7 @@ export default function LearningPage() {
               </button>
             )}
             <h3 className="text-sm font-semibold text-white truncate max-w-md">
-              {currentLesson?.title || 'Lesson Stream'}
+              {currentLesson?.title || 'Lesson Player'}
             </h3>
           </div>
 
@@ -309,52 +372,34 @@ export default function LearningPage() {
         {/* Content body */}
         <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center">
           <div className="w-full max-w-4xl space-y-6">
-            {/* Video Lesson */}
-            {currentLesson?.lesson_type === 'video' && (
-              <div className="rounded-2xl overflow-hidden bg-black border border-slate-800 shadow-2xl">
-                {currentLesson.video_url ? (
-                  <video
-                    key={currentLesson.video_url}
-                    controls
-                    controlsList="nodownload"
-                    className="w-full aspect-video bg-black"
-                    src={currentLesson.video_url}
-                  >
-                    Your browser does not support HTML5 video streaming.
-                  </video>
-                ) : (
-                  <div className="w-full aspect-video flex flex-col items-center justify-center bg-gradient-to-tr from-slate-900 to-slate-800 text-center p-8">
-                    <div className="w-16 h-16 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center mb-3">
-                      <Play className="w-8 h-8 fill-blue-500" />
-                    </div>
-                    <h4 className="text-base font-semibold text-white mb-1">{currentLesson.title}</h4>
-                    <p className="text-xs text-slate-400 max-w-md">
-                      Cloudinary streaming pipeline ready. Live lecture content will stream here.
-                    </p>
+            {/* Completion Banner if all complete */}
+            {isAllComplete && (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-teal-950/60 to-slate-900 border border-emerald-500/30 flex items-center justify-between gap-4 shadow-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <Award className="w-6 h-6" />
                   </div>
-                )}
+                  <div>
+                    <h4 className="text-sm font-bold text-white">Course 100% Completed!</h4>
+                    <p className="text-xs text-emerald-300/80">You have completed all curriculum modules.</p>
+                  </div>
+                </div>
+                <Link to="/student/certificates">
+                  <Button size="sm" icon={<Award className="w-4 h-4" />}>
+                    View Certificate
+                  </Button>
+                </Link>
               </div>
             )}
 
-            {/* Audio Lesson */}
-            {currentLesson?.lesson_type === 'audio' && (
-              <div className="rounded-2xl p-8 bg-slate-900 border border-slate-800 shadow-xl text-center">
-                <div className="w-20 h-20 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-4">
-                  <Volume2 className="w-10 h-10" />
-                </div>
-                <h4 className="text-xl font-display font-700 text-white mb-2">{currentLesson.title}</h4>
-                <p className="text-xs text-slate-400 mb-6">Cloudinary High-Fidelity Audio Stream</p>
-                {currentLesson.video_url || currentLesson.content ? (
-                  <audio
-                    key={currentLesson.video_url || currentLesson.content}
-                    controls
-                    className="w-full max-w-md mx-auto"
-                    src={currentLesson.video_url || currentLesson.content}
-                  />
-                ) : (
-                  <p className="text-xs text-slate-500">Audio lecture ready for playback.</p>
-                )}
-              </div>
+            {/* Video / Audio Lesson via Universal Player */}
+            {(currentLesson?.lesson_type === 'video' || currentLesson?.lesson_type === 'audio') && (
+              <UniversalPlayer
+                url={currentLesson.video_url || currentLesson.content}
+                title={currentLesson.title}
+                poster={course?.thumbnail_url}
+                onEnded={handleVideoEnded}
+              />
             )}
 
             {/* Quiz Lesson */}
@@ -363,7 +408,7 @@ export default function LearningPage() {
                 <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                   <div>
                     <h3 className="text-lg font-semibold text-white">{quiz?.title || currentLesson.title}</h3>
-                    <p className="text-xs text-slate-400">Pass mark: {quiz?.passing_score_percentage || 70}%</p>
+                    <p className="text-xs text-slate-400">Passing requirement: {quiz?.passing_score_percentage || 70}%</p>
                   </div>
                   {quizSubmitted && (
                     <Badge variant={Number(quizScore) >= (quiz?.passing_score_percentage || 70) ? 'success' : 'danger'}>
@@ -405,7 +450,7 @@ export default function LearningPage() {
                     ))
                   ) : (
                     <div className="p-6 text-center text-xs text-slate-400">
-                      Sample evaluation module. Click submit below to test automated grading.
+                      Standard module evaluation. Click submit below to record your quiz completion.
                     </div>
                   )}
 
@@ -424,9 +469,9 @@ export default function LearningPage() {
                 <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                   <div>
                     <h3 className="text-lg font-semibold text-white">{assignment?.title || currentLesson.title}</h3>
-                    <p className="text-xs text-slate-400">Project Evaluation & File Submission</p>
+                    <p className="text-xs text-slate-400">Practical Assessment & File Submission</p>
                   </div>
-                  {assignmentSubmitted && <Badge variant="success">Submitted</Badge>}
+                  {assignmentSubmitted && <Badge variant="success">Submitted for Grading</Badge>}
                 </div>
 
                 {assignment?.instructions && (
@@ -446,24 +491,24 @@ export default function LearningPage() {
                         required
                         value={submissionText}
                         onChange={e => setSubmissionText(e.target.value)}
-                        placeholder="Detail your solution, link github repo, or write your response here..."
+                        placeholder="Detail your solution, link your project or repo..."
                         className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
 
                     <div>
                       <label className="text-xs font-medium text-slate-300 block mb-1.5">
-                        Attach Project Files (Uploaded to Cloudinary CDN):
+                        Attach Project Files (Uploaded to Cloudinary CDN / Storage):
                       </label>
                       <div className="flex items-center gap-3">
                         <label className="px-4 py-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 cursor-pointer flex items-center gap-2 transition-colors">
                           <Upload className="w-3.5 h-3.5" />
-                          <span>{submittingFile ? 'Uploading to Cloudinary...' : 'Choose File'}</span>
+                          <span>{submittingFile ? 'Uploading...' : 'Choose File'}</span>
                           <input type="file" onChange={handleFileUpload} className="hidden" />
                         </label>
                         {submittedFileUrl && (
                           <span className="text-xs text-emerald-400 flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" /> Attached to Cloudinary CDN
+                            <Check className="w-3.5 h-3.5" /> File attached
                           </span>
                         )}
                       </div>
@@ -475,33 +520,168 @@ export default function LearningPage() {
                   </form>
                 ) : (
                   <div className="p-6 text-center text-emerald-400 font-medium text-xs bg-emerald-950/30 border border-emerald-800/40 rounded-xl">
-                    Your assignment has been submitted to the instructor for evaluation!
+                    Your assignment has been submitted! Your instructor will review and provide a score.
                   </div>
                 )}
               </div>
             )}
 
-            {/* Lesson notes / description */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-semibold text-white">{currentLesson?.title}</h3>
-                  <p className="text-xs text-slate-400">Lesson Description & Key Takeaways</p>
-                </div>
-
-                <Button
-                  variant={isCurrentDone ? 'secondary' : 'default'}
-                  disabled={markingComplete}
-                  onClick={handleMarkCompleted}
-                  icon={<CheckCircle className="w-4 h-4" />}
+            {/* Tabbed Interactive Panel: Overview, Notes, Resources, Q&A */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+              {/* Tab navigation */}
+              <div className="flex items-center border-b border-slate-800 px-4 bg-slate-900/70">
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+                    activeTab === 'overview'
+                      ? 'border-blue-500 text-white'
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
                 >
-                  {isCurrentDone ? 'Completed' : 'Mark as Complete'}
-                </Button>
+                  Overview & Description
+                </button>
+                <button
+                  onClick={() => setActiveTab('notes')}
+                  className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+                    activeTab === 'notes'
+                      ? 'border-blue-500 text-white'
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  My Notes
+                </button>
+                <button
+                  onClick={() => setActiveTab('resources')}
+                  className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+                    activeTab === 'resources'
+                      ? 'border-blue-500 text-white'
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Resources & Downloads
+                </button>
+                <button
+                  onClick={() => setActiveTab('qa')}
+                  className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
+                    activeTab === 'qa'
+                      ? 'border-blue-500 text-white'
+                      : 'border-transparent text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Discussion & Q&A ({qaQuestions.length})
+                </button>
               </div>
 
-              <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-line pt-3 border-t border-slate-800">
-                {currentLesson?.content ||
-                  'Engage with this lesson module and complete all required checks. Progress is synced automatically to your student record.'}
+              {/* Tab Content */}
+              <div className="p-6">
+                {activeTab === 'overview' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-base font-semibold text-white">{currentLesson?.title}</h3>
+                        <p className="text-xs text-slate-400">Module details and learning outcomes</p>
+                      </div>
+
+                      <Button
+                        variant={isCurrentDone ? 'secondary' : 'default'}
+                        disabled={markingComplete}
+                        onClick={handleMarkCompleted}
+                        icon={<CheckCircle className="w-4 h-4" />}
+                      >
+                        {isCurrentDone ? 'Completed' : 'Mark as Complete'}
+                      </Button>
+                    </div>
+
+                    <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-line pt-3 border-t border-slate-800">
+                      {currentLesson?.content ||
+                        'Engage with this lesson module and complete all required activities. Progress is saved automatically.'}
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'notes' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold text-slate-300">
+                        Personal Study Notes (Auto-saved to your browser)
+                      </label>
+                      <span className="text-[10px] text-slate-500">Synced locally</span>
+                    </div>
+                    <textarea
+                      rows={6}
+                      value={studentNotes}
+                      onChange={e => handleSaveNotes(e.target.value)}
+                      placeholder="Write your personal timestamped notes, code snippets, or key takeaways here..."
+                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans leading-relaxed"
+                    />
+                  </div>
+                )}
+
+                {activeTab === 'resources' && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-slate-400">Attached course materials and lesson attachments:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Paperclip className="w-4 h-4 text-blue-400" />
+                          <div>
+                            <p className="text-xs font-semibold text-white">Lesson Lecture Slides & Cheatsheet</p>
+                            <p className="text-[10px] text-slate-400">PDF • 2.4 MB</p>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="ghost" icon={<Download className="w-3.5 h-3.5" />}>
+                          Download
+                        </Button>
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Paperclip className="w-4 h-4 text-emerald-400" />
+                          <div>
+                            <p className="text-xs font-semibold text-white">Starter Code & Project Architecture</p>
+                            <p className="text-[10px] text-slate-400">ZIP • 5.1 MB</p>
+                          </div>
+                        </div>
+                        <Button size="sm" variant="ghost" icon={<Download className="w-3.5 h-3.5" />}>
+                          Download
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'qa' && (
+                  <div className="space-y-4">
+                    <form onSubmit={handleAddQuestion} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newQuestionText}
+                        onChange={e => setNewQuestionText(e.target.value)}
+                        placeholder="Ask a question about this lesson..."
+                        className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <Button type="submit" size="sm" icon={<Send className="w-3.5 h-3.5" />}>
+                        Ask
+                      </Button>
+                    </form>
+
+                    <div className="space-y-3 pt-2">
+                      {qaQuestions.map(q => (
+                        <div key={q.id} className="p-3.5 rounded-xl bg-slate-800/50 border border-slate-700/60 space-y-1.5">
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="font-semibold text-blue-400">{q.author}</span>
+                            <span className="text-slate-500">{q.time}</span>
+                          </div>
+                          <p className="text-xs text-slate-200">{q.text}</p>
+                          <div className="flex items-center gap-2 text-[10px] text-slate-400 pt-1">
+                            <MessageSquare className="w-3 h-3" />
+                            <span>{q.replies} instructor / peer replies</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

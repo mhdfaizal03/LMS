@@ -3,6 +3,7 @@ import { Search, Star, Users, Clock, ChevronRight, Loader2, BookOpen } from 'luc
 import { useNavigate } from 'react-router-dom'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
+import { resolveMediaUrl } from '../../utils/media'
 import { courseApi, enrollmentApi } from '../../api'
 import { Course, Category, Enrollment } from '../../types'
 
@@ -169,7 +170,7 @@ export default function BrowseCourses() {
                   <div className="relative overflow-hidden bg-slate-100">
                     {c.thumbnail_url ? (
                       <img
-                        src={c.thumbnail_url}
+                        src={resolveMediaUrl(c.thumbnail_url)}
                         alt={c.title}
                         className="w-full h-44 object-cover group-hover:scale-103 transition-transform duration-300"
                       />

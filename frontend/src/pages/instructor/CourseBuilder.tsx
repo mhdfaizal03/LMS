@@ -6,6 +6,8 @@ import {
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
+import { UniversalPlayer } from '../../components/player/UniversalPlayer'
+import { resolveMediaUrl } from '../../utils/media'
 import { courseApi, curriculumApi, uploadApi } from '../../api'
 import { Course, Category, Section, Lesson } from '../../types'
 
@@ -96,10 +98,28 @@ export default function CourseBuilder() {
     }
   }
 
-  // Cloudinary Lesson Media Upload (Video or Audio)
+  // Cloudinary / Local Lesson Media Upload (Video or Audio) with automatic duration extraction
   const handleLessonMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+
+    // Auto-detect duration from video or audio metadata
+    try {
+      const objectUrl = URL.createObjectURL(file)
+      const tempMedia = document.createElement(newLessonType === 'audio' ? 'audio' : 'video')
+      tempMedia.src = objectUrl
+      tempMedia.onloadedmetadata = () => {
+        const sec = tempMedia.duration
+        if (sec && !isNaN(sec) && sec > 0) {
+          const mins = Math.max(1, Math.round(sec / 60))
+          setNewLessonDuration(String(mins))
+        }
+        URL.revokeObjectURL(objectUrl)
+      }
+    } catch (e) {
+      console.log('Metadata duration detection error:', e)
+    }
+
     try {
       setUploadingMedia(true)
       const folder = newLessonType === 'audio' ? 'audios' : 'videos'
@@ -107,7 +127,7 @@ export default function CourseBuilder() {
       setNewLessonMediaUrl(res.url)
     } catch (err) {
       console.error('Media upload error:', err)
-      alert('Failed to upload media to Cloudinary.')
+      alert('Failed to upload media. Please try another file or enter direct link.')
     } finally {
       setUploadingMedia(false)
     }
@@ -608,19 +628,14 @@ export default function CourseBuilder() {
 
                     {/* Live Media Player Preview */}
                     {newLessonMediaUrl && (
-                      <div className="mt-3 p-2 bg-slate-900 rounded-xl overflow-hidden">
-                        <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-1.5 px-1">
+                      <div className="mt-3 p-3 bg-slate-950 rounded-2xl overflow-hidden border border-slate-800">
+                        <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-2 px-1">
                           Live Media Preview
                         </p>
-                        {newLessonType === 'video' ? (
-                          <video
-                            controls
-                            src={newLessonMediaUrl}
-                            className="w-full max-h-48 rounded-lg bg-black object-contain"
-                          />
-                        ) : (
-                          <audio controls src={newLessonMediaUrl} className="w-full" />
-                        )}
+                        <UniversalPlayer
+                          url={newLessonMediaUrl}
+                          title={newLessonTitle || 'Preview Player'}
+                        />
                       </div>
                     )}
                   </div>
@@ -654,14 +669,14 @@ export default function CourseBuilder() {
         <div className="space-y-6">
           {/* Thumbnail Uploader */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4 shadow-xs">
-            <h3 className="text-sm font-semibold text-slate-900">Course Cover (Cloudinary)</h3>
+            <h3 className="text-sm font-semibold text-slate-900">Course Cover Image</h3>
 
             {thumbnailUrl ? (
               <div className="relative rounded-xl overflow-hidden border border-slate-200 shadow-xs">
-                <img src={thumbnailUrl} alt="Thumbnail" className="w-full h-36 object-cover" />
+                <img src={resolveMediaUrl(thumbnailUrl)} alt="Thumbnail" className="w-full h-36 object-cover" />
                 <button
                   onClick={() => setThumbnailUrl('')}
-                  className="absolute top-2 right-2 px-2 py-1 rounded-md bg-black/70 text-white hover:bg-black text-[11px] font-medium"
+                  className="absolute top-2 right-2 px-2 py-1 rounded-md bg-black/70 text-white hover:bg-black text-[11px] font-medium cursor-pointer"
                 >
                   Remove
                 </button>
