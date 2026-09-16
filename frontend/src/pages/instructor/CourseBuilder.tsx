@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Plus, ChevronRight, Video, FileText, HelpCircle, ClipboardList,
-  Trash2, Edit, ChevronDown, Upload, Check, Loader2, Sparkles, Volume2, Save, Play, Film, Link as LinkIcon
+  Trash2, Edit, ChevronDown, Upload, Check, Loader2, Sparkles, Volume2,
+  Save, Play, Film, Link as LinkIcon, CheckCircle2, AlertCircle, Eye,
+  Clock, DollarSign, Layers, CheckCircle
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
@@ -14,6 +16,9 @@ import { Course, Category, Section, Lesson } from '../../types'
 export default function CourseBuilder() {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
+
+  // Stepper state
+  const [activeStep, setActiveStep] = useState<'info' | 'curriculum' | 'publish'>('info')
 
   // Form states
   const [courseId, setCourseId] = useState<number | null>(id ? Number(id) : null)
@@ -82,7 +87,7 @@ export default function CourseBuilder() {
     init()
   }, [courseId])
 
-  // Cloudinary Thumbnail Upload
+  // Thumbnail Upload
   const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -92,18 +97,18 @@ export default function CourseBuilder() {
       setThumbnailUrl(res.url)
     } catch (err) {
       console.error('Thumbnail upload error:', err)
-      alert('Failed to upload thumbnail to Cloudinary.')
+      alert('Failed to upload thumbnail.')
     } finally {
       setUploadingMedia(false)
     }
   }
 
-  // Cloudinary / Local Lesson Media Upload (Video or Audio) with automatic duration extraction
+  // Lesson Media Upload with Auto-Duration Detection
   const handleLessonMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Auto-detect duration from video or audio metadata
+    // Auto-detect duration from metadata
     try {
       const objectUrl = URL.createObjectURL(file)
       const tempMedia = document.createElement(newLessonType === 'audio' ? 'audio' : 'video')
@@ -117,7 +122,7 @@ export default function CourseBuilder() {
         URL.revokeObjectURL(objectUrl)
       }
     } catch (e) {
-      console.log('Metadata duration detection error:', e)
+      console.log('Metadata duration error:', e)
     }
 
     try {
@@ -127,7 +132,7 @@ export default function CourseBuilder() {
       setNewLessonMediaUrl(res.url)
     } catch (err) {
       console.error('Media upload error:', err)
-      alert('Failed to upload media. Please try another file or enter direct link.')
+      alert('Failed to upload media. Please check format or try direct link.')
     } finally {
       setUploadingMedia(false)
     }
@@ -162,10 +167,10 @@ export default function CourseBuilder() {
         setCourseId(saved.id)
       }
       setStatus(saved.status)
-      alert(publish ? 'Course published successfully!' : 'Course draft saved successfully!')
+      alert(publish ? '🎉 Course successfully published!' : 'Course draft saved successfully!')
     } catch (err: any) {
       console.error('Course save error:', err)
-      alert(err.response?.data?.detail || 'Failed to save course. Please check inputs.')
+      alert(err.response?.data?.detail || 'Failed to save course. Please verify input fields.')
     } finally {
       setSaving(false)
     }
@@ -175,42 +180,35 @@ export default function CourseBuilder() {
   const handleAddSection = async () => {
     if (!newSectionTitle.trim()) return
     if (!courseId) {
-      alert('Please save the course first before adding sections.')
+      alert('Please save the course details first before adding sections.')
       return
     }
     try {
-      const section = await curriculumApi.createSection(courseId, {
+      setSaving(true)
+      const order = sections.length + 1
+      const created = await curriculumApi.createSection(courseId, {
         title: newSectionTitle.trim(),
-        order: sections.length,
+        display_order: order,
       })
-      setSections([...sections, { ...section, lessons: [] }])
+      setSections(prev => [...prev, { ...created, lessons: [] }])
       setNewSectionTitle('')
       setShowAddSection(false)
     } catch (err) {
-      console.error('Create section error:', err)
-      alert('Failed to create section. Ensure course is saved.')
+      console.error('Add section error:', err)
+      alert('Failed to add section.')
+    } finally {
+      setSaving(false)
     }
   }
 
-  // Delete Section
-  const handleDeleteSection = async (sectionId: number) => {
-    if (!window.confirm('Delete this section and all its lessons?')) return
-    try {
-      await curriculumApi.deleteSection(sectionId)
-      setSections(prev => prev.filter(s => s.id !== sectionId))
-    } catch (err) {
-      console.error('Delete section error:', err)
-    }
-  }
-
-  // Open Lesson Form (Create or Edit)
-  const handleOpenLessonForm = (sectionId: number, lessonToEdit?: Lesson) => {
+  // Open Lesson Creator Modal
+  const handleOpenAddLesson = (sectionId: number, lessonToEdit?: Lesson) => {
     setActiveSectionId(sectionId)
     if (lessonToEdit) {
       setEditingLessonId(lessonToEdit.id)
       setNewLessonTitle(lessonToEdit.title || '')
-      setNewLessonType((lessonToEdit.lesson_type as any) || 'video')
-      setNewLessonDuration(String(lessonToEdit.duration_minutes || Math.round((lessonToEdit.duration_seconds || 900) / 60)))
+      setNewLessonType(lessonToEdit.lesson_type as any || 'video')
+      setNewLessonDuration(String(lessonToEdit.duration_minutes || '15'))
       setNewLessonMediaUrl(lessonToEdit.video_url || '')
       setNewLessonContent(lessonToEdit.content || '')
     } else {
@@ -224,362 +222,530 @@ export default function CourseBuilder() {
     setShowAddLesson(true)
   }
 
-  // Save Lesson (Create or Update)
+  // Save Lesson
   const handleSaveLesson = async () => {
-    if (!activeSectionId || !newLessonTitle.trim()) {
-      alert('Please provide a lesson title.')
+    if (!newLessonTitle.trim()) {
+      alert('Lesson title is required')
       return
     }
+    if (!activeSectionId) return
+
     try {
-      const durationNum = Number(newLessonDuration) || 15
-      const payload: Partial<Lesson> = {
+      setSaving(true)
+      const targetSec = sections.find(s => s.id === activeSectionId)
+      const order = (targetSec?.lessons?.length || 0) + 1
+
+      const lessonPayload: any = {
         title: newLessonTitle.trim(),
         lesson_type: newLessonType,
-        duration_minutes: durationNum,
-        duration_seconds: durationNum * 60,
+        duration_minutes: Number(newLessonDuration) || 15,
         video_url: newLessonMediaUrl.trim() || undefined,
         content: newLessonContent.trim() || undefined,
+        display_order: order,
+        is_free_preview: false,
       }
 
       if (editingLessonId) {
-        const updated = await curriculumApi.updateLesson(editingLessonId, payload)
+        const updated = await curriculumApi.updateLesson(editingLessonId, lessonPayload)
         setSections(prev =>
-          prev.map(s =>
-            s.id === activeSectionId
-              ? {
-                  ...s,
-                  lessons: (s.lessons || []).map(l => (l.id === editingLessonId ? { ...l, ...updated } : l)),
-                }
-              : s
+          prev.map(sec =>
+            sec.id === activeSectionId
+              ? { ...sec, lessons: (sec.lessons || []).map(l => (l.id === editingLessonId ? updated : l)) }
+              : sec
           )
         )
       } else {
-        const created = await curriculumApi.createLesson(activeSectionId, payload)
+        const created = await curriculumApi.createLesson(activeSectionId, lessonPayload)
         setSections(prev =>
-          prev.map(s => (s.id === activeSectionId ? { ...s, lessons: [...(s.lessons || []), created] } : s))
+          prev.map(sec =>
+            sec.id === activeSectionId
+              ? { ...sec, lessons: [...(sec.lessons || []), created] }
+              : sec
+          )
         )
       }
-
       setShowAddLesson(false)
       setEditingLessonId(null)
-      setNewLessonTitle('')
-      setNewLessonMediaUrl('')
-      setNewLessonContent('')
-    } catch (err) {
+    } catch (err: any) {
       console.error('Save lesson error:', err)
-      alert('Failed to save lesson.')
+      alert(err.response?.data?.detail || 'Failed to save lesson.')
+    } finally {
+      setSaving(false)
     }
   }
 
   // Delete Lesson
   const handleDeleteLesson = async (sectionId: number, lessonId: number) => {
-    if (!window.confirm('Delete this lesson?')) return
+    if (!confirm('Are you sure you want to delete this lesson?')) return
     try {
       await curriculumApi.deleteLesson(lessonId)
       setSections(prev =>
-        prev.map(s => (s.id === sectionId ? { ...s, lessons: (s.lessons || []).filter(l => l.id !== lessonId) } : s))
+        prev.map(sec =>
+          sec.id === sectionId
+            ? { ...sec, lessons: (sec.lessons || []).filter(l => l.id !== lessonId) }
+            : sec
+        )
       )
     } catch (err) {
       console.error('Delete lesson error:', err)
     }
   }
 
+  // Delete Section
+  const handleDeleteSection = async (sectionId: number) => {
+    if (!confirm('Are you sure you want to delete this entire section and its lessons?')) return
+    try {
+      await curriculumApi.deleteSection(sectionId)
+      setSections(prev => prev.filter(s => s.id !== sectionId))
+    } catch (err) {
+      console.error('Delete section error:', err)
+    }
+  }
+
+  // Pre-flight checks
+  const totalLessonsCount = sections.reduce((acc, s) => acc + (s.lessons?.length || 0), 0)
+  const isTitleReady = title.trim().length > 3
+  const isCoverReady = !!thumbnailUrl
+  const isSectionsReady = sections.length > 0
+  const isLessonsReady = totalLessonsCount > 0
+  const isReadyToPublish = isTitleReady && isCoverReady && isSectionsReady && isLessonsReady
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-        <p className="text-sm text-slate-500 font-medium">Loading course builder...</p>
+      <div className="flex flex-col items-center justify-center min-h-[450px] gap-3">
+        <Loader2 className="w-9 h-9 text-blue-600 animate-spin" />
+        <p className="text-sm text-slate-500 font-semibold">Loading course builder & curriculum designer...</p>
       </div>
     )
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      {/* Header action bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+    <div className="max-w-6xl mx-auto space-y-7">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-xl font-display font-700 text-slate-900">
-              {courseId ? `Editing Course: ${title || 'Untitled'}` : 'Create New Course'}
-            </h2>
-            <Badge variant={status === 'published' ? 'success' : 'warning'}>{status}</Badge>
-          </div>
-          <p className="text-xs text-slate-500">Live editor connected directly to FastAPI & Cloudinary CDN</p>
+          <h1 className="text-2xl font-display font-bold text-slate-900">
+            {courseId ? `Editing: ${title || 'Course'}` : 'Create New Course'}
+          </h1>
+          <p className="text-xs text-slate-500">Design high-definition video masterclasses and module curriculum</p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate('/instructor/courses')}>
-            Back to Courses
-          </Button>
+        <div className="flex items-center gap-3">
+          {courseId && (
+            <Button
+              variant="outline"
+              size="sm"
+              icon={<Eye className="w-4 h-4" />}
+              onClick={() => navigate(`/student/courses/${courseId}`)}
+            >
+              Preview as Student
+            </Button>
+          )}
           <Button
-            variant="secondary"
             size="sm"
-            disabled={saving}
             onClick={() => handleSaveCourse(false)}
-            icon={<Save className="w-3.5 h-3.5" />}
+            disabled={saving}
+            icon={saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           >
-            {saving ? 'Saving...' : 'Save Draft'}
+            Save Draft
           </Button>
           <Button
             size="sm"
-            disabled={saving}
+            variant="secondary"
             onClick={() => handleSaveCourse(true)}
-            icon={<Sparkles className="w-3.5 h-3.5" />}
+            disabled={saving || !isReadyToPublish}
+            icon={<Sparkles className="w-4 h-4" />}
           >
-            Publish Course
+            {status === 'published' ? 'Update & Published' : 'Publish Course'}
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Course Info & Curriculum */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Metadata Card */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4 shadow-xs">
-            <h3 className="text-base font-semibold text-slate-900">Course Details</h3>
+      {/* Stepper Navigation */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-xs flex items-center justify-between gap-2">
+        <button
+          onClick={() => setActiveStep('info')}
+          className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeStep === 'info'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          <span>1. Course Details & Media</span>
+        </button>
 
-            <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">Course Title</label>
-              <input
-                type="text"
-                required
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                placeholder="e.g. Modern Full-Stack Web Development & Cloud Architecture"
-                className="w-full h-10 border border-slate-300 rounded-lg px-3 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              />
-            </div>
+        <button
+          onClick={() => {
+            if (!courseId) {
+              alert('Please save course details first to unlock curriculum building.')
+              return
+            }
+            setActiveStep('curriculum')
+          }}
+          className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeStep === 'curriculum'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <Video className="w-4 h-4" />
+          <span>2. Curriculum & Video Modules ({totalLessonsCount})</span>
+        </button>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Category</label>
-                <select
-                  value={categoryId}
-                  onChange={e => setCategoryId(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full h-10 border border-slate-300 rounded-lg px-3 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer"
-                >
-                  <option value="">Select Category</option>
-                  {categories.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+        <button
+          onClick={() => setActiveStep('publish')}
+          className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            activeStep === 'publish'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'text-slate-600 hover:bg-slate-50'
+          }`}
+        >
+          <CheckCircle2 className="w-4 h-4" />
+          <span>3. Pre-Flight Review & Publish</span>
+        </button>
+      </div>
+
+      {/* Step 1: Course Info & Cover Image */}
+      {activeStep === 'info' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-5">
+              <h3 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-3">
+                General Course Information
+              </h3>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1.5">Course Title *</label>
+                  <input
+                    type="text"
+                    required
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                    placeholder="e.g. Full Stack Engineering with Next.js, FastAPI & PostgreSQL"
+                    className="w-full h-11 border border-slate-300 rounded-xl px-4 text-xs sm:text-sm font-semibold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1.5">Short Catchy Tagline</label>
+                  <input
+                    type="text"
+                    value={shortDescription}
+                    onChange={e => setShortDescription(e.target.value)}
+                    placeholder="A concise, high-impact summary displayed in course cards"
+                    className="w-full h-10 border border-slate-300 rounded-xl px-3 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Category</label>
+                    <select
+                      value={categoryId}
+                      onChange={e => setCategoryId(e.target.value ? Number(e.target.value) : '')}
+                      className="w-full h-10 border border-slate-300 rounded-xl px-3 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 block mb-1.5">Difficulty Level</label>
+                    <select
+                      value={difficultyLevel}
+                      onChange={e => setDifficultyLevel(e.target.value)}
+                      className="w-full h-10 border border-slate-300 rounded-xl px-3 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                    >
+                      <option value="Beginner">Beginner</option>
+                      <option value="Intermediate">Intermediate</option>
+                      <option value="Advanced">Advanced</option>
+                      <option value="All Levels">All Levels</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1.5">Full Course Syllabus & Description</label>
+                  <textarea
+                    rows={6}
+                    value={description}
+                    onChange={e => setDescription(e.target.value)}
+                    placeholder="Provide detailed description of what students will achieve, prerequisites, and learning outcomes..."
+                    className="w-full border border-slate-300 rounded-xl p-3.5 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 leading-relaxed"
+                  />
+                </div>
               </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Difficulty Level</label>
-                <select
-                  value={difficultyLevel}
-                  onChange={e => setDifficultyLevel(e.target.value)}
-                  className="w-full h-10 border border-slate-300 rounded-lg px-3 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white cursor-pointer"
-                >
-                  <option value="Beginner">Beginner</option>
-                  <option value="Intermediate">Intermediate</option>
-                  <option value="Advanced">Advanced</option>
-                  <option value="All Levels">All Levels</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">Detailed Course Description</label>
-              <textarea
-                rows={4}
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="Write what students will achieve in this comprehensive course..."
-                className="w-full border border-slate-300 rounded-lg p-3 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-              />
             </div>
           </div>
 
-          {/* Curriculum Builder Card */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4 shadow-xs">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-slate-900">Curriculum & Video Modules</h3>
-                <p className="text-xs text-slate-500">Organize your modules, video lessons, audio lectures & quizzes</p>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowAddSection(true)}
-                icon={<Plus className="w-3.5 h-3.5" />}
-              >
-                Add Section / Module
-              </Button>
+          {/* Right Column: Media & Pricing */}
+          <div className="space-y-6">
+            {/* Thumbnail */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <h3 className="text-sm font-bold text-slate-900">Course Cover Thumbnail</h3>
+
+              {thumbnailUrl ? (
+                <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-xs aspect-video">
+                  <img src={resolveMediaUrl(thumbnailUrl)} alt="Thumbnail" className="w-full h-full object-cover" />
+                  <button
+                    onClick={() => setThumbnailUrl('')}
+                    className="absolute top-2 right-2 px-2.5 py-1 rounded-lg bg-black/80 text-white hover:bg-black text-[11px] font-bold cursor-pointer"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full aspect-video border-2 border-dashed border-slate-300 rounded-2xl flex flex-col items-center justify-center p-6 text-center bg-slate-50">
+                  <Upload className="w-8 h-8 text-slate-400 mb-2" />
+                  <p className="text-xs text-slate-700 font-bold">Upload Course Cover Image</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, WebP up to 10MB</p>
+                </div>
+              )}
+
+              <label className="w-full py-2.5 rounded-xl border border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer flex items-center justify-center gap-2 transition-colors">
+                <Upload className="w-4 h-4 text-blue-600" />
+                <span>{uploadingMedia ? 'Uploading...' : 'Choose Thumbnail File'}</span>
+                <input type="file" accept="image/*" onChange={handleThumbnailUpload} className="hidden" />
+              </label>
             </div>
 
-            {/* Add Section Form */}
-            {showAddSection && (
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
-                <label className="text-xs font-semibold text-slate-700 block">Section Title</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newSectionTitle}
-                    onChange={e => setNewSectionTitle(e.target.value)}
-                    placeholder="e.g. Module 1: Architecture & Backend Services"
-                    className="flex-1 h-9 border border-slate-300 rounded-lg px-3 text-xs bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <Button size="sm" onClick={handleAddSection}>
-                    Save Section
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setShowAddSection(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
+            {/* Pricing Model */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+              <h3 className="text-sm font-bold text-slate-900">Course Pricing</h3>
 
-            {/* Section list */}
-            <div className="space-y-4">
-              {sections.length > 0 ? (
-                sections.map((sec, sIdx) => (
-                  <div key={sec.id || sIdx} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
-                    <div className="bg-slate-50 px-4 py-3 flex items-center justify-between border-b border-slate-200">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 font-bold text-[10px] flex items-center justify-center">
-                          {sIdx + 1}
-                        </span>
-                        <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                          {sec.title}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleOpenLessonForm(sec.id)}
-                          icon={<Plus className="w-3.5 h-3.5" />}
-                        >
-                          Add Lesson
-                        </Button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSection(sec.id)}
-                          className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
+              <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={isFree}
+                  onChange={e => setIsFree(e.target.checked)}
+                  className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                />
+                <span className="text-xs font-bold text-slate-700">Make this course free for all students</span>
+              </label>
 
-                    <div className="divide-y divide-slate-100 p-2">
-                      {(sec.lessons || []).map((les, lIdx) => (
-                        <div key={les.id || lIdx} className="px-3 py-2.5 flex items-center justify-between text-xs hover:bg-slate-50/60 rounded-lg transition-colors">
-                          <div className="flex items-center gap-2.5">
-                            {les.lesson_type === 'video' && <Video className="w-4 h-4 text-blue-500 flex-shrink-0" />}
-                            {les.lesson_type === 'audio' && <Volume2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
-                            {les.lesson_type === 'quiz' && <HelpCircle className="w-4 h-4 text-violet-500 flex-shrink-0" />}
-                            {les.lesson_type === 'assignment' && <ClipboardList className="w-4 h-4 text-amber-500 flex-shrink-0" />}
-                            {les.lesson_type === 'text' && <FileText className="w-4 h-4 text-slate-500 flex-shrink-0" />}
-                            <div>
-                              <p className="font-medium text-slate-800">{les.title}</p>
-                              {les.video_url && (
-                                <span className="text-[10px] text-blue-600 font-mono flex items-center gap-1 mt-0.5">
-                                  <Film className="w-3 h-3" /> Video Linked
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <span className="text-slate-400 font-mono text-[11px]">{les.duration_minutes || Math.round((les.duration_seconds || 900) / 60)}m</span>
-                            <button
-                              type="button"
-                              onClick={() => handleOpenLessonForm(sec.id, les)}
-                              className="p-1 text-slate-400 hover:text-blue-600 rounded"
-                            >
-                              <Edit className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteLesson(sec.id, les.id)}
-                              className="p-1 text-slate-400 hover:text-red-600 rounded"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      {(sec.lessons || []).length === 0 && (
-                        <p className="text-center text-xs text-slate-400 py-3">No lessons in this module yet. Click &quot;Add Lesson&quot; above.</p>
-                      )}
-                    </div>
+              {!isFree && (
+                <div className="pt-2">
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Course Price (USD $)</label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 font-bold">$</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={price}
+                      onChange={e => setPrice(e.target.value)}
+                      className="w-full h-10 border border-slate-300 rounded-xl px-3 text-xs font-bold text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
                   </div>
-                ))
-              ) : (
-                <div className="p-8 text-center text-xs text-slate-500 border-2 border-dashed border-slate-200 rounded-xl">
-                  No modules created yet. Click &quot;Add Section / Module&quot; above to organize your lessons.
                 </div>
               )}
             </div>
 
-            {/* Add / Edit Lesson Modal */}
-            {showAddLesson && (
-              <div className="p-5 rounded-2xl bg-gradient-to-b from-blue-50/60 to-white border border-blue-200 space-y-4 shadow-md">
-                <div className="flex items-center justify-between border-b border-blue-100 pb-2">
-                  <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wide">
-                    {editingLessonId ? 'Edit Lesson' : 'Create New Lesson'}
-                  </h4>
-                  <Badge variant="default">{newLessonType.toUpperCase()}</Badge>
+            <Button onClick={() => handleSaveCourse(false)} className="w-full py-3 font-bold">
+              Save & Continue to Curriculum
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Curriculum & Video Modules */}
+      {activeStep === 'curriculum' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-bold text-slate-900">Course Curriculum & Video Lectures</h3>
+              <p className="text-xs text-slate-500">Organize your course into structured sections and high-definition video modules</p>
+            </div>
+            <Button
+              size="sm"
+              icon={<Plus className="w-4 h-4" />}
+              onClick={() => setShowAddSection(true)}
+            >
+              Add New Section
+            </Button>
+          </div>
+
+          {/* Add Section Modal / Box */}
+          {showAddSection && (
+            <div className="p-5 rounded-2xl bg-blue-50/70 border border-blue-200 space-y-3">
+              <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wide">Add New Curriculum Section</h4>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newSectionTitle}
+                  onChange={e => setNewSectionTitle(e.target.value)}
+                  placeholder="e.g. Section 1: Foundations & Architecture Setup"
+                  className="flex-1 h-10 border border-blue-300 rounded-xl px-3 text-xs bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <Button size="sm" onClick={handleAddSection}>
+                  Save Section
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setShowAddSection(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Sections List */}
+          <div className="space-y-4">
+            {sections.map((section, sIdx) => (
+              <div key={section.id} className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+                <div className="p-4 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-900">
+                      Section {sIdx + 1}: {section.title}
+                    </span>
+                    <span className="text-[11px] text-slate-500">({section.lessons?.length || 0} lessons)</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      icon={<Plus className="w-3.5 h-3.5" />}
+                      onClick={() => handleOpenAddLesson(section.id)}
+                    >
+                      Add Lesson
+                    </Button>
+                    <button
+                      onClick={() => handleDeleteSection(section.id)}
+                      className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                      title="Delete Section"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Lessons in Section */}
+                <div className="divide-y divide-slate-100 p-2">
+                  {(section.lessons || []).length > 0 ? (
+                    section.lessons!.map((lesson, lIdx) => (
+                      <div
+                        key={lesson.id}
+                        className="p-3 rounded-xl flex items-center justify-between hover:bg-slate-50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          {lesson.lesson_type === 'video' && <Video className="w-4 h-4 text-blue-600" />}
+                          {lesson.lesson_type === 'audio' && <Volume2 className="w-4 h-4 text-emerald-600" />}
+                          {lesson.lesson_type === 'quiz' && <HelpCircle className="w-4 h-4 text-violet-600" />}
+                          {lesson.lesson_type === 'assignment' && <ClipboardList className="w-4 h-4 text-amber-600" />}
+                          {lesson.lesson_type === 'text' && <FileText className="w-4 h-4 text-slate-500" />}
+
+                          <div>
+                            <p className="text-xs font-bold text-slate-900">{lesson.title}</p>
+                            <p className="text-[10px] text-slate-400 capitalize">
+                              {lesson.lesson_type} • {lesson.duration_minutes || 15} mins
+                              {lesson.video_url && ' • Video Ready'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleOpenAddLesson(section.id, lesson)}
+                            className="p-1.5 text-slate-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors cursor-pointer"
+                            title="Edit Lesson"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteLesson(section.id, lesson.id)}
+                            className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                            title="Delete Lesson"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="p-6 text-center text-xs text-slate-400">
+                      No lessons added to this section yet. Click "Add Lesson" above.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Add / Edit Lesson Modal */}
+          {showAddLesson && (
+            <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+              <div className="bg-white rounded-3xl border border-slate-200 max-w-2xl w-full p-6 space-y-5 shadow-2xl my-8">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <h3 className="text-base font-bold text-slate-900">
+                    {editingLessonId ? 'Edit Lesson Module' : 'Add New Lesson Module'}
+                  </h3>
+                  <button
+                    onClick={() => setShowAddLesson(false)}
+                    className="text-slate-400 hover:text-slate-700 text-xs font-bold px-2 py-1 rounded-md cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Lesson Title</label>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Lesson Title *</label>
                     <input
                       type="text"
                       required
                       value={newLessonTitle}
                       onChange={e => setNewLessonTitle(e.target.value)}
-                      placeholder="e.g. Asynchronous Microservices with FastAPI"
-                      className="w-full h-9 border border-slate-300 rounded-lg px-3 text-xs bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="e.g. Asynchronous Microservices & PostgreSQL"
+                      className="w-full h-10 border border-slate-300 rounded-xl px-3 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
+
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Lesson Type</label>
+                    <label className="text-xs font-bold text-slate-700 block mb-1">Lesson Type</label>
                     <select
                       value={newLessonType}
                       onChange={e => setNewLessonType(e.target.value as any)}
-                      className="w-full h-9 border border-slate-300 rounded-lg px-3 text-xs bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      className="w-full h-10 border border-slate-300 rounded-xl px-3 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                     >
-                      <option value="video">Video Lecture (Cloudinary / Stream)</option>
-                      <option value="audio">Audio Lesson (Cloudinary / MP3)</option>
+                      <option value="video">Video Lecture (Upload / Stream / YouTube)</option>
+                      <option value="audio">Audio Lecture (Upload / Stream)</option>
                       <option value="text">Article / Documentation</option>
                       <option value="quiz">Interactive Quiz</option>
-                      <option value="assignment">Assignment / Project</option>
+                      <option value="assignment">Project Assignment</option>
                     </select>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Duration (Minutes)</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={newLessonDuration}
-                      onChange={e => setNewLessonDuration(e.target.value)}
-                      className="w-full h-9 border border-slate-300 rounded-lg px-3 text-xs bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Duration (Minutes)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newLessonDuration}
+                    onChange={e => setNewLessonDuration(e.target.value)}
+                    className="w-32 h-10 border border-slate-300 rounded-xl px-3 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
                 </div>
 
-                {/* Video / Audio Media Section */}
+                {/* Video / Audio Uploader & Direct Link */}
                 {(newLessonType === 'video' || newLessonType === 'audio') && (
-                  <div className="p-3.5 bg-white border border-slate-200 rounded-xl space-y-3">
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-800">
                         {newLessonType === 'audio' ? 'Audio Source' : 'Video Source'}
                       </label>
-                      <div className="flex items-center gap-1 p-0.5 bg-slate-100 rounded-lg text-[11px]">
+                      <div className="flex items-center gap-1 p-0.5 bg-slate-200 rounded-lg text-[11px]">
                         <button
                           type="button"
                           onClick={() => setMediaInputType('upload')}
-                          className={`px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
-                            mediaInputType === 'upload' ? 'bg-white text-blue-600 shadow-2xs font-semibold' : 'text-slate-600'
+                          className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
+                            mediaInputType === 'upload' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600'
                           }`}
                         >
                           Upload File
@@ -587,20 +753,21 @@ export default function CourseBuilder() {
                         <button
                           type="button"
                           onClick={() => setMediaInputType('link')}
-                          className={`px-2.5 py-1 rounded-md font-medium transition-all cursor-pointer ${
-                            mediaInputType === 'link' ? 'bg-white text-blue-600 shadow-2xs font-semibold' : 'text-slate-600'
+                          className={`px-3 py-1 rounded-md font-bold transition-all cursor-pointer ${
+                            mediaInputType === 'link' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-600'
                           }`}
                         >
-                          Direct URL
+                          Direct URL / YouTube
                         </button>
                       </div>
                     </div>
 
                     {mediaInputType === 'upload' ? (
-                      <div className="flex items-center gap-3">
-                        <label className="px-3.5 py-2 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-700 cursor-pointer flex items-center gap-2 transition-colors">
-                          <Upload className="w-3.5 h-3.5" />
-                          <span>{uploadingMedia ? 'Uploading to Cloudinary CDN...' : `Select ${newLessonType === 'audio' ? 'Audio' : 'Video'} File`}</span>
+                      <div className="space-y-2">
+                        <label className="w-full py-4 rounded-xl border-2 border-dashed border-slate-300 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 cursor-pointer flex flex-col items-center justify-center gap-1 transition-colors">
+                          <Upload className="w-5 h-5 text-blue-600" />
+                          <span>{uploadingMedia ? 'Uploading video to Cloudinary / Storage...' : `Select ${newLessonType === 'audio' ? 'Audio' : 'Video'} File`}</span>
+                          <span className="text-[10px] text-slate-400 font-normal">MP4, WebM, MOV, MKV up to 250MB (Duration auto-calculated)</span>
                           <input
                             type="file"
                             accept={newLessonType === 'audio' ? 'audio/*' : 'video/*'}
@@ -608,33 +775,26 @@ export default function CourseBuilder() {
                             className="hidden"
                           />
                         </label>
-                        {newLessonMediaUrl && (
-                          <span className="text-xs text-emerald-600 font-medium flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" /> Uploaded & Linked
-                          </span>
-                        )}
                       </div>
                     ) : (
-                      <div>
-                        <input
-                          type="url"
-                          value={newLessonMediaUrl}
-                          onChange={e => setNewLessonMediaUrl(e.target.value)}
-                          placeholder="https://commondatastorage.googleapis.com/... or https://res.cloudinary.com/..."
-                          className="w-full h-9 border border-slate-300 rounded-lg px-3 text-xs bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
-                      </div>
+                      <input
+                        type="url"
+                        value={newLessonMediaUrl}
+                        onChange={e => setNewLessonMediaUrl(e.target.value)}
+                        placeholder="https://www.youtube.com/watch?v=... or https://res.cloudinary.com/..."
+                        className="w-full h-10 border border-slate-300 rounded-xl px-3 text-xs bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
                     )}
 
-                    {/* Live Media Player Preview */}
+                    {/* Live Preview Player */}
                     {newLessonMediaUrl && (
                       <div className="mt-3 p-3 bg-slate-950 rounded-2xl overflow-hidden border border-slate-800">
-                        <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-2 px-1">
-                          Live Media Preview
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2 px-1">
+                          Live Lecture Stream Preview
                         </p>
                         <UniversalPlayer
                           url={newLessonMediaUrl}
-                          title={newLessonTitle || 'Preview Player'}
+                          title={newLessonTitle || 'Lecture Preview'}
                         />
                       </div>
                     )}
@@ -642,90 +802,89 @@ export default function CourseBuilder() {
                 )}
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Lesson Content / Study Notes</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">Lesson Content / Notes / Code Snippets</label>
                   <textarea
                     rows={3}
                     value={newLessonContent}
                     onChange={e => setNewLessonContent(e.target.value)}
-                    placeholder="Write detailed lecture transcript, code snippets, or reading assignments..."
-                    className="w-full border border-slate-300 rounded-lg p-2.5 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Write lecture summary, reading materials, or starter code..."
+                    className="w-full border border-slate-300 rounded-xl p-3 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
 
-                <div className="flex gap-2 pt-2 border-t border-slate-200">
-                  <Button size="sm" onClick={handleSaveLesson}>
-                    {editingLessonId ? 'Save Lesson Changes' : 'Add Lesson'}
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => setShowAddLesson(false)}>
+                <div className="flex gap-2 justify-end pt-3 border-t border-slate-100">
+                  <Button variant="ghost" onClick={() => setShowAddLesson(false)}>
                     Cancel
+                  </Button>
+                  <Button onClick={handleSaveLesson}>
+                    {editingLessonId ? 'Save Changes' : 'Add Lesson'}
                   </Button>
                 </div>
               </div>
-            )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Step 3: Publish & Pre-Flight Review */}
+      {activeStep === 'publish' && (
+        <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-xs space-y-6">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">Pre-Flight Review & Quality Assurance</h3>
+            <p className="text-xs text-slate-500">Ensure all curriculum elements meet publishing guidelines</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className={`p-4 rounded-2xl border flex items-center gap-3 ${isTitleReady ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+              {isTitleReady ? <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />}
+              <div>
+                <p className="text-xs font-bold">Course Title & Metadata</p>
+                <p className="text-[11px] opacity-80">{isTitleReady ? 'Configured properly' : 'Please provide a descriptive title'}</p>
+              </div>
+            </div>
+
+            <div className={`p-4 rounded-2xl border flex items-center gap-3 ${isCoverReady ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+              {isCoverReady ? <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />}
+              <div>
+                <p className="text-xs font-bold">Cover Thumbnail Image</p>
+                <p className="text-[11px] opacity-80">{isCoverReady ? 'High-definition cover uploaded' : 'Please upload a course thumbnail'}</p>
+              </div>
+            </div>
+
+            <div className={`p-4 rounded-2xl border flex items-center gap-3 ${isSectionsReady ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+              {isSectionsReady ? <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />}
+              <div>
+                <p className="text-xs font-bold">Curriculum Sections</p>
+                <p className="text-[11px] opacity-80">{isSectionsReady ? `${sections.length} structured sections` : 'Add at least 1 section'}</p>
+              </div>
+            </div>
+
+            <div className={`p-4 rounded-2xl border flex items-center gap-3 ${isLessonsReady ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+              {isLessonsReady ? <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" /> : <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0" />}
+              <div>
+                <p className="text-xs font-bold">Video & Content Modules</p>
+                <p className="text-[11px] opacity-80">{isLessonsReady ? `${totalLessonsCount} lectures configured` : 'Add at least 1 lesson'}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-6 bg-slate-50 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h4 className="text-sm font-bold text-slate-900">Current Status: <span className="uppercase text-blue-600">{status}</span></h4>
+              <p className="text-xs text-slate-500">Publishing makes this course immediately available to all enrolled students.</p>
+            </div>
+
+            <Button
+              onClick={() => handleSaveCourse(true)}
+              disabled={!isReadyToPublish || saving}
+              className="font-bold py-3 px-6 shadow-md"
+              icon={<Sparkles className="w-4 h-4" />}
+            >
+              {status === 'published' ? 'Save & Maintain Live' : 'Publish Course Now'}
+            </Button>
           </div>
         </div>
-
-        {/* Right Col: Media & Pricing Sidebar */}
-        <div className="space-y-6">
-          {/* Thumbnail Uploader */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4 shadow-xs">
-            <h3 className="text-sm font-semibold text-slate-900">Course Cover Image</h3>
-
-            {thumbnailUrl ? (
-              <div className="relative rounded-xl overflow-hidden border border-slate-200 shadow-xs">
-                <img src={resolveMediaUrl(thumbnailUrl)} alt="Thumbnail" className="w-full h-36 object-cover" />
-                <button
-                  onClick={() => setThumbnailUrl('')}
-                  className="absolute top-2 right-2 px-2 py-1 rounded-md bg-black/70 text-white hover:bg-black text-[11px] font-medium cursor-pointer"
-                >
-                  Remove
-                </button>
-              </div>
-            ) : (
-              <div className="w-full h-36 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center p-4 text-center">
-                <Upload className="w-6 h-6 text-slate-400 mb-2" />
-                <p className="text-xs text-slate-600 font-medium">Upload cover image</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">PNG, JPG, WebP up to 10MB</p>
-              </div>
-            )}
-
-            <label className="w-full py-2 rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-700 cursor-pointer flex items-center justify-center gap-2 transition-colors shadow-2xs">
-              <Upload className="w-3.5 h-3.5" />
-              <span>{uploadingMedia ? 'Uploading to Cloudinary...' : 'Upload Thumbnail'}</span>
-              <input type="file" accept="image/*" onChange={handleThumbnailUpload} className="hidden" />
-            </label>
-          </div>
-
-          {/* Pricing Model */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4 shadow-xs">
-            <h3 className="text-sm font-semibold text-slate-900">Pricing Model</h3>
-
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={isFree}
-                onChange={e => setIsFree(e.target.checked)}
-                className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
-              />
-              <span className="text-xs font-medium text-slate-700">Make this course free for all students</span>
-            </label>
-
-            {!isFree && (
-              <div className="pt-2">
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Course Price (USD $)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  value={price}
-                  onChange={e => setPrice(e.target.value)}
-                  className="w-full h-9 border border-slate-300 rounded-lg px-3 text-xs bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   )
 }
