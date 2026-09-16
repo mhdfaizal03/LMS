@@ -37,6 +37,7 @@ export const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showSpeedMenu, setShowSpeedMenu] = useState<boolean>(false);
   const [showControls, setShowControls] = useState<boolean>(true);
+  const [hasMediaError, setHasMediaError] = useState<boolean>(false);
   const controlsTimeoutRef = useRef<any>(null);
 
   const resolvedUrl = resolveMediaUrl(url);
@@ -52,6 +53,7 @@ export const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    setHasMediaError(false);
   }, [url]);
 
   // Handle Fullscreen change listener
@@ -330,6 +332,58 @@ export const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
     );
   }
 
+  // If no URL or media failed to load, show rich interactive preview card
+  if (!resolvedUrl || hasMediaError) {
+    return (
+      <div
+        className={`relative w-full aspect-video bg-gradient-to-br from-slate-900 via-slate-950 to-blue-950 rounded-2xl overflow-hidden border border-slate-800 shadow-2xl flex flex-col items-center justify-center p-6 text-center select-none ${className}`}
+      >
+        {poster && (
+          <img
+            src={resolveMediaUrl(poster)}
+            alt={title || 'Course Lecture'}
+            className="absolute inset-0 w-full h-full object-cover opacity-20 blur-xs"
+          />
+        )}
+        <div className="relative z-10 max-w-md space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-blue-600/30 border border-blue-500/40 text-blue-400 flex items-center justify-center shadow-xl">
+            <VideoIcon className="w-8 h-8 text-blue-400" />
+          </div>
+          <div>
+            <h4 className="text-base font-bold text-white mb-1">{title || 'Lecture Video Module'}</h4>
+            <p className="text-xs text-slate-400">
+              {hasMediaError
+                ? 'External media stream temporarily unavailable or source removed.'
+                : 'Video lecture stream is ready for this curriculum module.'}
+            </p>
+          </div>
+
+          <div className="flex items-center justify-center gap-3 pt-1">
+            <button
+              onClick={() => {
+                setHasMediaError(false);
+                setIsPlaying(true);
+                onEnded?.();
+              }}
+              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer"
+            >
+              <Play className="w-4 h-4 fill-white" />
+              <span>Mark Video Watched</span>
+            </button>
+            {hasMediaError && (
+              <button
+                onClick={() => setHasMediaError(false)}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+              >
+                Retry Stream
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Native HTML5 Video Stream Player (Cloudinary, Local Uploads, Direct MP4)
   return (
     <div
@@ -344,6 +398,8 @@ export const UniversalPlayer: React.FC<UniversalPlayerProps> = ({
         poster={poster ? resolveMediaUrl(poster) : undefined}
         autoPlay={autoPlay}
         playsInline
+        crossOrigin="anonymous"
+        onError={() => setHasMediaError(true)}
         onClick={handlePlayPause}
         onTimeUpdate={() => {
           if (videoRef.current) {

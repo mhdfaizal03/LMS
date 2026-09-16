@@ -402,17 +402,75 @@ export default function LearningPage() {
               />
             )}
 
+            {/* Dedicated Article / Text Lesson Reading Workstation */}
+            {currentLesson?.lesson_type === 'text' && (
+              <div className="rounded-3xl p-8 bg-slate-900 border border-slate-800 shadow-2xl space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="px-2.5 py-1 rounded-md bg-blue-500/20 text-blue-400 font-bold text-[10px] uppercase tracking-wider">
+                        Article Module
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                        <Clock className="w-3.5 h-3.5" />
+                        {currentLesson.duration_minutes || Math.max(2, Math.ceil((currentLesson.content?.length || 500) / 400))} min read
+                      </span>
+                    </div>
+                    <h2 className="text-xl font-bold text-white tracking-tight">{currentLesson.title}</h2>
+                  </div>
+
+                  <Button
+                    variant={isCurrentDone ? 'secondary' : 'default'}
+                    disabled={markingComplete}
+                    onClick={handleMarkCompleted}
+                    icon={<CheckCircle className="w-4 h-4" />}
+                  >
+                    {isCurrentDone ? 'Completed' : 'Mark as Read'}
+                  </Button>
+                </div>
+
+                <div className="prose prose-invert max-w-none text-slate-200 text-sm leading-relaxed space-y-4">
+                  {currentLesson.content ? (
+                    <div className="bg-slate-950/60 rounded-2xl p-6 border border-slate-800/80 font-sans whitespace-pre-line leading-7 text-slate-200">
+                      {currentLesson.content}
+                    </div>
+                  ) : (
+                    <div className="p-8 text-center text-slate-400 bg-slate-950/40 rounded-2xl border border-slate-800/60">
+                      <BookOpen className="w-8 h-8 text-blue-400 mx-auto mb-2 opacity-80" />
+                      <p className="text-xs">Reading notes and architectural guide for this module.</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-4 rounded-2xl bg-blue-950/30 border border-blue-800/30 flex items-center justify-between">
+                  <span className="text-xs text-blue-300">Finished reviewing this article?</span>
+                  <button
+                    onClick={handleMarkCompleted}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all cursor-pointer shadow-md flex items-center gap-2"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Complete & Next Lesson</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Quiz Lesson */}
             {currentLesson?.lesson_type === 'quiz' && (
-              <div className="rounded-2xl p-6 bg-slate-900 border border-slate-800 shadow-xl space-y-6">
+              <div className="rounded-3xl p-8 bg-slate-900 border border-slate-800 shadow-2xl space-y-6">
                 <div className="flex items-center justify-between pb-4 border-b border-slate-800">
                   <div>
-                    <h3 className="text-lg font-semibold text-white">{quiz?.title || currentLesson.title}</h3>
-                    <p className="text-xs text-slate-400">Passing requirement: {quiz?.passing_score_percentage || 70}%</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="px-2.5 py-1 rounded-md bg-violet-500/20 text-violet-400 font-bold text-[10px] uppercase tracking-wider">
+                        Interactive Knowledge Check
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-bold text-white">{quiz?.title || currentLesson.title}</h3>
+                    <p className="text-xs text-slate-400">Passing requirement: {quiz?.passing_score_percentage || (quiz as any)?.passing_score || 70}%</p>
                   </div>
                   {quizSubmitted && (
-                    <Badge variant={Number(quizScore) >= (quiz?.passing_score_percentage || 70) ? 'success' : 'danger'}>
-                      Score: {quizScore}%
+                    <Badge variant={Number(quizScore) >= (quiz?.passing_score_percentage || (quiz as any)?.passing_score || 70) ? 'success' : 'danger'}>
+                      Score: {quizScore}% {Number(quizScore) >= (quiz?.passing_score_percentage || (quiz as any)?.passing_score || 70) ? '(Passed)' : '(Retake Available)'}
                     </Badge>
                   )}
                 </div>
@@ -420,48 +478,80 @@ export default function LearningPage() {
                 <form onSubmit={handleQuizSubmit} className="space-y-6">
                   {(quiz?.questions || []).length > 0 ? (
                     quiz!.questions.map((q, idx) => (
-                      <div key={q.id} className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-3">
-                        <p className="text-sm font-medium text-white">
-                          {idx + 1}. {q.question_text}
-                        </p>
-                        <div className="space-y-2">
+                      <div key={q.id} className="p-5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-sm font-semibold text-white leading-snug">
+                            <span className="text-blue-400 font-bold mr-1.5">{idx + 1}.</span> {q.question_text}
+                          </p>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300">
+                            {q.marks || 1} pt
+                          </span>
+                        </div>
+                        <div className="space-y-2 pt-1">
                           {(Array.isArray(q.options) ? q.options : []).map((opt: any, oIdx: number) => {
                             const optText = typeof opt === 'string' ? opt : (opt?.text || String(opt));
                             const optVal = typeof opt === 'string' ? opt : (opt?.id || opt?.text || String(opt));
+                            const isChecked = selectedAnswers[q.id] === optVal;
                             return (
                               <label
                                 key={oIdx}
-                                className={`flex items-center gap-3 p-3 rounded-lg border text-xs cursor-pointer transition-colors ${
-                                  selectedAnswers[q.id] === optVal
-                                    ? 'bg-blue-600/20 border-blue-500 text-white'
-                                    : 'bg-slate-800/40 border-slate-700 text-slate-300 hover:bg-slate-800'
+                                className={`flex items-center gap-3 p-3.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                                  isChecked
+                                    ? 'bg-blue-600/20 border-blue-500 text-white ring-1 ring-blue-500/50'
+                                    : 'bg-slate-800/40 border-slate-700/80 text-slate-300 hover:bg-slate-800 hover:border-slate-600'
                                 }`}
                               >
                                 <input
                                   type="radio"
                                   name={`q_${q.id}`}
                                   value={optVal}
-                                  checked={selectedAnswers[q.id] === optVal}
+                                  checked={isChecked}
                                   onChange={() => setSelectedAnswers(prev => ({ ...prev, [q.id]: optVal }))}
-                                  className="text-blue-600 focus:ring-blue-500"
+                                  className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                                 />
-                                <span>{optText}</span>
+                                <span className="font-medium leading-relaxed">{optText}</span>
                               </label>
                             );
                           })}
                         </div>
+
+                        {quizSubmitted && q.explanation && (
+                          <div className="mt-2 p-3 rounded-xl bg-slate-900/80 border border-slate-700/50 text-[11px] text-slate-300">
+                            <strong className="text-blue-400">Explanation:</strong> {q.explanation}
+                          </div>
+                        )}
                       </div>
                     ))
                   ) : (
-                    <div className="p-6 text-center text-xs text-slate-400">
+                    <div className="p-6 text-center text-xs text-slate-400 bg-slate-950/40 rounded-2xl border border-slate-800">
                       Standard module evaluation. Click submit below to record your quiz completion.
                     </div>
                   )}
 
-                  {!quizSubmitted && (
-                    <Button type="submit" className="w-full">
+                  {!quizSubmitted ? (
+                    <Button type="submit" className="w-full py-3">
                       Submit Quiz Answers
                     </Button>
+                  ) : (
+                    <div className="flex gap-3 justify-end">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setQuizSubmitted(false);
+                          setSelectedAnswers({});
+                        }}
+                      >
+                        Retake Quiz
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={handleMarkCompleted}
+                        icon={<ChevronRight className="w-4 h-4" />}
+                      >
+                        Proceed to Next Module
+                      </Button>
+                    </div>
                   )}
                 </form>
               </div>

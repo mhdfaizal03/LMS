@@ -10,7 +10,7 @@ import Button from '../../components/ui/Button'
 import Badge from '../../components/ui/Badge'
 import { UniversalPlayer } from '../../components/player/UniversalPlayer'
 import { resolveMediaUrl } from '../../utils/media'
-import { courseApi, curriculumApi, uploadApi } from '../../api'
+import { courseApi, curriculumApi, uploadApi, quizApi, assignmentApi } from '../../api'
 import { Course, Category, Section, Lesson } from '../../types'
 
 export default function CourseBuilder() {
@@ -53,6 +53,32 @@ export default function CourseBuilder() {
   const [newLessonContent, setNewLessonContent] = useState('')
   const [showAddLesson, setShowAddLesson] = useState(false)
   const [mediaInputType, setMediaInputType] = useState<'upload' | 'link'>('upload')
+
+  // Quiz creation states
+  const [quizTimeLimit, setQuizTimeLimit] = useState('15')
+  const [quizPassingScore, setQuizPassingScore] = useState('70')
+  const [quizQuestions, setQuizQuestions] = useState<Array<{
+    question_text: string
+    options: Array<{ id: string; text: string }>
+    correct_answers: string[]
+    explanation: string
+  }>>([
+    {
+      question_text: '',
+      options: [
+        { id: 'a', text: '' },
+        { id: 'b', text: '' },
+        { id: 'c', text: '' },
+        { id: 'd', text: '' },
+      ],
+      correct_answers: ['a'],
+      explanation: '',
+    },
+  ])
+
+  // Assignment creation states
+  const [assignmentInstructions, setAssignmentInstructions] = useState('')
+  const [assignmentMaxScore, setAssignmentMaxScore] = useState('100')
 
   // Load initial data
   useEffect(() => {
@@ -245,6 +271,7 @@ export default function CourseBuilder() {
         is_free_preview: false,
       }
 
+      let targetLessonId = editingLessonId
       if (editingLessonId) {
         const updated = await curriculumApi.updateLesson(editingLessonId, lessonPayload)
         setSections(prev =>
@@ -256,6 +283,7 @@ export default function CourseBuilder() {
         )
       } else {
         const created = await curriculumApi.createLesson(activeSectionId, lessonPayload)
+        targetLessonId = created.id
         setSections(prev =>
           prev.map(sec =>
             sec.id === activeSectionId
@@ -264,6 +292,48 @@ export default function CourseBuilder() {
           )
         )
       }
+
+      // If Quiz type, attach quiz and questions
+      if (newLessonType === 'quiz' && courseId && targetLessonId) {
+        try {
+          const qz = await quizApi.createQuiz(courseId, {
+            title: newLessonTitle.trim(),
+            instructions: 'Answer all questions carefully to test your comprehension.',
+            time_limit_minutes: Number(quizTimeLimit) || 15,
+            passing_score: Number(quizPassingScore) || 70,
+            max_attempts: 3,
+          }, targetLessonId)
+
+          for (const q of quizQuestions) {
+            if (q.question_text.trim()) {
+              await quizApi.addQuestion(qz.id, {
+                question_text: q.question_text.trim(),
+                question_type: 'single_choice',
+                options: q.options.filter(opt => opt.text.trim().length > 0),
+                correct_answers: q.correct_answers,
+                explanation: q.explanation.trim() || undefined,
+                marks: 2.0,
+              })
+            }
+          }
+        } catch (qzErr) {
+          console.error('Quiz creation error:', qzErr)
+        }
+      }
+
+      // If Assignment type, attach assignment
+      if (newLessonType === 'assignment' && courseId && targetLessonId) {
+        try {
+          await assignmentApi.createAssignment(courseId, {
+            title: newLessonTitle.trim(),
+            instructions: assignmentInstructions.trim() || newLessonContent.trim() || 'Complete the assignment according to the project specifications.',
+            max_score: Number(assignmentMaxScore) || 100,
+          }, targetLessonId)
+        } catch (asErr) {
+          console.error('Assignment creation error:', asErr)
+        }
+      }
+
       setShowAddLesson(false)
       setEditingLessonId(null)
     } catch (err: any) {
@@ -801,13 +871,202 @@ export default function CourseBuilder() {
                   </div>
                 )}
 
+                {/* Quiz Builder for Instructor */}
+                {newLessonType === 'quiz' && (
+                  <div className="p-4 bg-violet-50/50 border border-violet-200 rounded-2xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-violet-900 flex items-center gap-1.5">
+                        <HelpCircle className="w-4 h-4 text-violet-600" />
+                        <span>Interactive Quiz Configuration</span>
+                      </h4>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5 text-xs text-slate-700">
+                          <span>Pass Score %:</span>
+                          <input
+                            type="number"
+                            min="50"
+                            max="100"
+                            value={quizPassingScore}
+                            onChange={e => setQuizPassingScore(e.target.value)}
+                            className="w-16 h-8 border border-slate-300 rounded-lg px-2 text-xs bg-white text-slate-900"
+                          />
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-700">
+                          <span>Time (min):</span>
+                          <input
+                            type="number"
+                            min="5"
+                            max="120"
+                            value={quizTimeLimit}
+                            onChange={e => setQuizTimeLimit(e.target.value)}
+                            className="w-16 h-8 border border-slate-300 rounded-lg px-2 text-xs bg-white text-slate-900"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4 pt-2">
+                      {quizQuestions.map((q, qIdx) => (
+                        <div key={qIdx} className="p-3.5 bg-white rounded-xl border border-slate-200 space-y-3 shadow-2xs">
+                          <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-800">
+                              Question #{qIdx + 1}
+                            </label>
+                            {quizQuestions.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => setQuizQuestions(prev => prev.filter((_, idx) => idx !== qIdx))}
+                                className="text-red-500 hover:text-red-700 text-xs font-semibold cursor-pointer"
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+
+                          <input
+                            type="text"
+                            value={q.question_text}
+                            onChange={e => {
+                              const val = e.target.value
+                              setQuizQuestions(prev =>
+                                prev.map((item, idx) => (idx === qIdx ? { ...item, question_text: val } : item))
+                              )
+                            }}
+                            placeholder="Enter the question prompt..."
+                            className="w-full h-9 border border-slate-300 rounded-lg px-3 text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                          />
+
+                          <div className="space-y-1.5 pt-1">
+                            <p className="text-[11px] font-semibold text-slate-600">Choices & Correct Answer:</p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {q.options.map(opt => (
+                                <div key={opt.id} className="flex items-center gap-2">
+                                  <input
+                                    type="radio"
+                                    name={`correct_${qIdx}`}
+                                    checked={q.correct_answers.includes(opt.id)}
+                                    onChange={() => {
+                                      setQuizQuestions(prev =>
+                                        prev.map((item, idx) => (idx === qIdx ? { ...item, correct_answers: [opt.id] } : item))
+                                      )
+                                    }}
+                                    className="w-4 h-4 text-violet-600 focus:ring-violet-500 cursor-pointer"
+                                    title="Mark as correct answer"
+                                  />
+                                  <input
+                                    type="text"
+                                    value={opt.text}
+                                    onChange={e => {
+                                      const val = e.target.value
+                                      setQuizQuestions(prev =>
+                                        prev.map((item, idx) =>
+                                          idx === qIdx
+                                            ? {
+                                                ...item,
+                                                options: item.options.map(o => (o.id === opt.id ? { ...o, text: val } : o)),
+                                              }
+                                            : item
+                                        )
+                                      )
+                                    }}
+                                    placeholder={`Choice (${opt.id.toUpperCase()})`}
+                                    className="flex-1 h-8 border border-slate-300 rounded-lg px-2.5 text-xs bg-white text-slate-900 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <input
+                              type="text"
+                              value={q.explanation}
+                              onChange={e => {
+                                const val = e.target.value
+                                setQuizQuestions(prev =>
+                                  prev.map((item, idx) => (idx === qIdx ? { ...item, explanation: val } : item))
+                                )
+                              }}
+                              placeholder="Explanation shown after answer submission (optional)..."
+                              className="w-full h-8 border border-slate-200 rounded-lg px-3 text-[11px] bg-slate-50 text-slate-700"
+                            />
+                          </div>
+                        </div>
+                      ))}
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setQuizQuestions(prev => [
+                            ...prev,
+                            {
+                              question_text: '',
+                              options: [
+                                { id: 'a', text: '' },
+                                { id: 'b', text: '' },
+                                { id: 'c', text: '' },
+                                { id: 'd', text: '' },
+                              ],
+                              correct_answers: ['a'],
+                              explanation: '',
+                            },
+                          ])
+                        }
+                        className="w-full py-2 border border-dashed border-violet-300 rounded-xl text-violet-700 font-bold text-xs hover:bg-violet-50 transition-colors flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add Another Question
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Assignment Builder for Instructor */}
+                {newLessonType === 'assignment' && (
+                  <div className="p-4 bg-amber-50/50 border border-amber-200 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+                        <ClipboardList className="w-4 h-4 text-amber-600" />
+                        <span>Project Assignment Specifications</span>
+                      </h4>
+                      <div className="flex items-center gap-1.5 text-xs text-slate-700">
+                        <span>Max Score:</span>
+                        <input
+                          type="number"
+                          value={assignmentMaxScore}
+                          onChange={e => setAssignmentMaxScore(e.target.value)}
+                          className="w-16 h-8 border border-slate-300 rounded-lg px-2 text-xs bg-white text-slate-900"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-slate-700 block mb-1">
+                        Detailed Project Instructions & Rubric *
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={assignmentInstructions}
+                        onChange={e => setAssignmentInstructions(e.target.value)}
+                        placeholder="Provide clear step-by-step instructions for what students need to implement and turn in..."
+                        className="w-full border border-slate-300 rounded-xl p-3 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div>
-                  <label className="text-xs font-bold text-slate-700 block mb-1">Lesson Content / Notes / Code Snippets</label>
+                  <label className="text-xs font-bold text-slate-700 block mb-1">
+                    {newLessonType === 'text' ? 'Article Guide & Reading Material *' : 'Lesson Content / Overview Notes'}
+                  </label>
                   <textarea
-                    rows={3}
+                    rows={newLessonType === 'text' ? 6 : 3}
                     value={newLessonContent}
                     onChange={e => setNewLessonContent(e.target.value)}
-                    placeholder="Write lecture summary, reading materials, or starter code..."
+                    placeholder={
+                      newLessonType === 'text'
+                        ? 'Write comprehensive article notes, architectural explanations, code snippets, or markdown guide...'
+                        : 'Write lecture summary, reading materials, or starter notes...'
+                    }
                     className="w-full border border-slate-300 rounded-xl p-3 text-xs text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
