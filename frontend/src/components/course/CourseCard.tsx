@@ -35,7 +35,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, showProgress = f
         </div>
         <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
           <span className="badge badge-secondary" style={{ backgroundColor: 'rgba(15, 23, 42, 0.75)', color: '#ffffff', textTransform: 'capitalize' }}>
-            {course.difficulty_level.replace('_', ' ')}
+            {(course.difficulty_level || 'beginner').replace('_', ' ')}
           </span>
         </div>
       </div>
@@ -141,11 +141,11 @@ export const CourseCard: React.FC<CourseCardProps> = ({ course, showProgress = f
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.25rem' }}>
             <div>
-              {course.is_free || course.price === 0 ? (
+              {course.is_free || !course.price ? (
                 <span style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--success)' }}>Free</span>
               ) : (
                 <span style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  ${course.price.toFixed(2)}
+                  ${Number(course.price).toFixed(2)}
                 </span>
               )}
             </div>

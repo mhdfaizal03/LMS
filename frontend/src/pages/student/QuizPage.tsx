@@ -79,10 +79,15 @@ export default function QuizPage() {
           user_answer: answers[idx] || '',
         }))
         const res = await quizApi.submitQuiz(quiz.id, answersList)
-        setScorePct(res.score_percentage)
+        setScorePct(res.score_percentage ?? res.percentage ?? 0)
       } else {
-        const correctCount = answers.filter((a, i) => a === questions[i].options[questions[i].correct_option_index || 0]).length
-        setScorePct(Math.round((correctCount / questions.length) * 100))
+        const correctCount = answers.filter((a, i) => {
+          const opts = Array.isArray(questions[i]?.options) ? questions[i].options : [];
+          const targetOpt = opts[questions[i]?.correct_option_index || 0];
+          const targetVal = typeof targetOpt === 'string' ? targetOpt : (targetOpt?.text || targetOpt?.id);
+          return a === targetVal;
+        }).length
+        setScorePct(Math.round((correctCount / Math.max(1, questions.length)) * 100))
       }
     } catch (err) {
       console.error('Submit quiz error:', err)

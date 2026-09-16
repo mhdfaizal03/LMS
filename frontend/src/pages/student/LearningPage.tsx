@@ -209,7 +209,7 @@ export default function LearningPage() {
     }))
     try {
       const res = await quizApi.submitQuiz(quiz.id, answersList)
-      setQuizScore(res.score_percentage)
+      setQuizScore(res.score_percentage ?? res.percentage ?? 0)
       setQuizSubmitted(true)
       if (res.is_passed) {
         handleMarkCompleted()
@@ -425,26 +425,30 @@ export default function LearningPage() {
                           {idx + 1}. {q.question_text}
                         </p>
                         <div className="space-y-2">
-                          {(q.options || []).map((opt, oIdx) => (
-                            <label
-                              key={oIdx}
-                              className={`flex items-center gap-3 p-3 rounded-lg border text-xs cursor-pointer transition-colors ${
-                                selectedAnswers[q.id] === opt
-                                  ? 'bg-blue-600/20 border-blue-500 text-white'
-                                  : 'bg-slate-800/40 border-slate-700 text-slate-300 hover:bg-slate-800'
-                              }`}
-                            >
-                              <input
-                                type="radio"
-                                name={`q_${q.id}`}
-                                value={opt}
-                                checked={selectedAnswers[q.id] === opt}
-                                onChange={() => setSelectedAnswers(prev => ({ ...prev, [q.id]: opt }))}
-                                className="text-blue-600 focus:ring-blue-500"
-                              />
-                              <span>{opt}</span>
-                            </label>
-                          ))}
+                          {(Array.isArray(q.options) ? q.options : []).map((opt: any, oIdx: number) => {
+                            const optText = typeof opt === 'string' ? opt : (opt?.text || String(opt));
+                            const optVal = typeof opt === 'string' ? opt : (opt?.id || opt?.text || String(opt));
+                            return (
+                              <label
+                                key={oIdx}
+                                className={`flex items-center gap-3 p-3 rounded-lg border text-xs cursor-pointer transition-colors ${
+                                  selectedAnswers[q.id] === optVal
+                                    ? 'bg-blue-600/20 border-blue-500 text-white'
+                                    : 'bg-slate-800/40 border-slate-700 text-slate-300 hover:bg-slate-800'
+                                }`}
+                              >
+                                <input
+                                  type="radio"
+                                  name={`q_${q.id}`}
+                                  value={optVal}
+                                  checked={selectedAnswers[q.id] === optVal}
+                                  onChange={() => setSelectedAnswers(prev => ({ ...prev, [q.id]: optVal }))}
+                                  className="text-blue-600 focus:ring-blue-500"
+                                />
+                                <span>{optText}</span>
+                              </label>
+                            );
+                          })}
                         </div>
                       </div>
                     ))

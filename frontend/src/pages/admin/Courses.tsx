@@ -167,7 +167,7 @@ export default function AdminCourses() {
                     </td>
                     <td className="px-5 py-3.5 text-slate-600">{course.difficulty_level || 'All Levels'}</td>
                     <td className="px-5 py-3.5">
-                      <Badge variant={statusBadge[course.status] || 'muted'}>{course.status}</Badge>
+                      <Badge variant={statusBadge[course.status || 'draft'] || 'muted'}>{course.status || 'draft'}</Badge>
                     </td>
                     <td className="px-5 py-3.5 text-right">
                       <div className="flex items-center justify-end gap-2">

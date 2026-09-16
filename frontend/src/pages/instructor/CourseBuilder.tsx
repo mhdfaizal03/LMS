@@ -166,7 +166,7 @@ export default function CourseBuilder() {
         saved = await courseApi.createCourse(payload)
         setCourseId(saved.id)
       }
-      setStatus(saved.status)
+      setStatus(saved.status || 'draft')
       alert(publish ? '🎉 Course successfully published!' : 'Course draft saved successfully!')
     } catch (err: any) {
       console.error('Course save error:', err)

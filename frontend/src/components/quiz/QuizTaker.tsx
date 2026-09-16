@@ -16,7 +16,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onQuizCompleted }) =
   const { showToast } = useNotification();
 
   const [currentAnswers, setCurrentAnswers] = useState<Record<number, any>>({});
-  const [timeLeft, setTimeLeft] = useState<number>(quiz.time_limit_minutes * 60);
+  const [timeLeft, setTimeLeft] = useState<number>((quiz.time_limit_minutes || 30) * 60);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [latestAttempt, setLatestAttempt] = useState<QuizAttempt | null>(null);
   const [attempts, setAttempts] = useState<QuizAttempt[]>([]);
@@ -97,13 +97,14 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onQuizCompleted }) =
   };
 
   const handleRetake = () => {
-    if (attempts.length >= quiz.max_attempts) {
-      showToast(`Maximum attempts (${quiz.max_attempts}) reached`, 'warning');
+    const maxAttempts = quiz.max_attempts || 3;
+    if (attempts.length >= maxAttempts) {
+      showToast(`Maximum attempts (${maxAttempts}) reached`, 'warning');
       return;
     }
     setLatestAttempt(null);
     setCurrentAnswers({});
-    setTimeLeft(quiz.time_limit_minutes * 60);
+    setTimeLeft((quiz.time_limit_minutes || 30) * 60);
     setIsStarted(true);
   };
 
@@ -240,7 +241,7 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onQuizCompleted }) =
 
               {/* Options */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {q.options?.map((opt) => {
+                {(Array.isArray(q.options) ? q.options : []).map((opt: any) => {
                   const isChecked = isMultiple
                     ? Array.isArray(selected) && selected.includes(opt.id)
                     : selected === opt.id;
@@ -307,9 +308,9 @@ export const QuizTaker: React.FC<QuizTakerProps> = ({ quiz, onQuizCompleted }) =
             {isSubmitting ? 'Submitting & Grading...' : 'Submit Answers'}
           </button>
         ) : (
-          attempts.length < quiz.max_attempts && (
+          attempts.length < (quiz.max_attempts || 3) && (
             <button onClick={handleRetake} className="btn btn-primary">
-              <RotateCcw size={16} /> Retake Quiz ({quiz.max_attempts - attempts.length} attempts left)
+              <RotateCcw size={16} /> Retake Quiz ({(quiz.max_attempts || 3) - attempts.length} attempts left)
             </button>
           )
         )}

@@ -125,7 +125,7 @@ export default function InstructorCourses() {
                       </div>
                     )}
                     <div className="absolute top-2 right-2">
-                      <Badge variant={statusBadge[c.status] || 'muted'}>{c.status}</Badge>
+                      <Badge variant={statusBadge[c.status || 'draft'] || 'muted'}>{c.status || 'draft'}</Badge>
                     </div>
                   </div>
                   <div className="p-4">
@@ -188,7 +188,7 @@ export default function InstructorCourses() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-slate-900 text-sm truncate">{c.title}</p>
-                    <Badge variant={statusBadge[c.status] || 'muted'}>{c.status}</Badge>
+                    <Badge variant={statusBadge[c.status || 'draft'] || 'muted'}>{c.status || 'draft'}</Badge>
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {c.category?.name || 'Category'} • {c.total_students_enrolled || 0} students enrolled

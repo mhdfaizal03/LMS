@@ -126,7 +126,7 @@ export const CourseDetailPage: React.FC = () => {
                   <span className="badge badge-primary">{course.category.name}</span>
                 )}
                 <span className="badge badge-secondary" style={{ textTransform: 'capitalize' }}>
-                  {course.difficulty_level.replace('_', ' ')}
+                  {(course.difficulty_level || 'beginner').replace('_', ' ')}
                 </span>
                 <span className="badge badge-info" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <Globe size={12} /> {course.language}
@@ -473,21 +473,21 @@ export const CourseDetailPage: React.FC = () => {
               {/* Price Row */}
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
                 <div>
-                  {course.is_free || course.price === 0 ? (
+                  {course.is_free || !course.price ? (
                     <span style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--success)' }}>Free</span>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
                       <span style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        ${course.price.toFixed(2)}
+                        ${Number(course.price).toFixed(2)}
                       </span>
                       <span style={{ fontSize: '1rem', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
-                        ${(course.price * 1.5).toFixed(2)}
+                        ${(Number(course.price) * 1.5).toFixed(2)}
                       </span>
                     </div>
                   )}
                 </div>
                 <span className="badge badge-success" style={{ fontWeight: 700 }}>
-                  {course.is_free || course.price === 0 ? 'Instant Access' : '33% OFF'}
+                  {course.is_free || !course.price ? 'Instant Access' : '33% OFF'}
                 </span>
               </div>
 

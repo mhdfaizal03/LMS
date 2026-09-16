@@ -90,7 +90,7 @@ export const CourseManagementPage: React.FC = () => {
                   </td>
                   <td>{course.instructor?.name || 'Instructor'}</td>
                   <td>{course.category?.name || 'Uncategorized'}</td>
-                  <td>{course.is_free ? 'Free' : `$${course.price.toFixed(2)}`}</td>
+                  <td>{course.is_free || !course.price ? 'Free' : `$${Number(course.price).toFixed(2)}`}</td>
                   <td>
                     <button
                       onClick={() => handleTogglePublish(course)}

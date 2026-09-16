@@ -47,9 +47,9 @@ export const courseApi = {
 
 // Curriculum API
 export const curriculumApi = {
-  createSection: (courseId: number, data: { title: string; description?: string; order?: number }) =>
+  createSection: (courseId: number, data: { title: string; description?: string; order?: number; display_order?: number }) =>
     apiClient.post<Section>(`/sections/course/${courseId}`, data).then((res) => res.data),
-  updateSection: (sectionId: number, data: { title?: string; description?: string; order?: number }) =>
+  updateSection: (sectionId: number, data: { title?: string; description?: string; order?: number; display_order?: number }) =>
     apiClient.put<Section>(`/sections/${sectionId}`, data).then((res) => res.data),
   deleteSection: (sectionId: number) =>
     apiClient.delete(`/sections/${sectionId}`).then((res) => res.data),

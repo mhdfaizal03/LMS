@@ -319,7 +319,7 @@ export const CurriculumBuilder: React.FC<CurriculumBuilderProps> = ({
                                 setLessonContent(lesson.content || '');
                                 setVideoUrl(lesson.video_url || '');
                                 setDurationSeconds(lesson.duration_seconds || 300);
-                                setIsPreview(lesson.is_preview);
+                                setIsPreview(Boolean(lesson.is_preview || (lesson as any).is_free_preview));
                                 setShowLessonModal(true);
                               }}
                               className="btn-icon"
