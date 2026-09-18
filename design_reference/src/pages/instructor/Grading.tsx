@@ -1,143 +1,183 @@
 import { useState } from 'react'
-import { AlertCircle, CheckCircle, Clock, FileText } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, FileText, Send, ChevronRight } from 'lucide-react'
 import Avatar from '../../components/ui/Avatar'
 import Badge from '../../components/ui/Badge'
 import Button from '../../components/ui/Button'
 
 const submissions = [
-  { id: 1, student: 'Alex Johnson', assignment: 'React State Management Analysis', course: 'React Fundamentals', submitted: 'Sep 15, 2026 — 9:14 AM', status: 'pending', maxMarks: 100, files: ['state-analysis.pdf'] },
-  { id: 2, student: 'Emily Chen', assignment: 'User Journey Mapping Exercise', course: 'UX Design Mastery', submitted: 'Sep 15, 2026 — 7:30 AM', status: 'pending', maxMarks: 50, files: ['journey-map.fig', 'notes.pdf'] },
-  { id: 3, student: 'James Okafor', assignment: 'Neural Network from Scratch', course: 'ML Basics', submitted: 'Sep 14, 2026 — 11:52 PM', status: 'pending', maxMarks: 150, files: ['notebook.ipynb', 'report.pdf'] },
-  { id: 4, student: 'Priya Sharma', assignment: 'API Design Documentation', course: 'Advanced Node.js', submitted: 'Sep 13, 2026 — 4:20 PM', status: 'graded', grade: 88, maxMarks: 100, files: ['api-docs.pdf'] },
+  { id: 1, student: 'Alex Johnson',   course: 'React Fundamentals',  assignment: 'Hooks Deep Dive',     submitted: '2h ago',   status: 'pending',  preview: 'My solution uses useCallback to memoize the expensive sort function. I also added custom hooks for the data-fetching layer...' },
+  { id: 2, student: 'Sam Rivera',     course: 'React Fundamentals',  assignment: 'Custom Hook Project', submitted: '5h ago',   status: 'pending',  preview: 'I built a useLocalStorage hook that syncs state with localStorage and handles JSON serialization/deserialization automatically...' },
+  { id: 3, student: 'Jordan Lee',     course: 'Advanced Node.js',    assignment: 'REST API Final',      submitted: '1d ago',   status: 'graded',   preview: 'Implemented full CRUD endpoints with Express, JWT auth middleware, and rate limiting using express-rate-limit...' },
+  { id: 4, student: 'Taylor Smith',   course: 'React Fundamentals',  assignment: 'Component Library',   submitted: '2d ago',   status: 'pending',  preview: 'Created 12 reusable components following the Atomic Design methodology. All components have TypeScript interfaces...' },
+  { id: 5, student: 'Morgan Chen',    course: 'Advanced Node.js',    assignment: 'Middleware Lab',      submitted: '3d ago',   status: 'graded',   preview: 'Wrote custom error-handling middleware that catches async errors and returns structured JSON responses with appropriate status codes...' },
 ]
+
+const pending = submissions.filter(s => s.status === 'pending')
+const graded  = submissions.filter(s => s.status === 'graded')
 
 export default function InstructorGrading() {
   const [selected, setSelected] = useState(submissions[0])
   const [grade, setGrade] = useState('')
   const [feedback, setFeedback] = useState('')
   const [toast, setToast] = useState(false)
+  const [tab, setTab] = useState<'pending' | 'graded'>('pending')
 
-  const handleSubmit = () => {
+  const list = tab === 'pending' ? pending : graded
+
+  const submitGrade = () => {
+    if (!grade) return
     setToast(true)
+    setGrade('')
+    setFeedback('')
     setTimeout(() => setToast(false), 2500)
   }
 
+  const numGrade = parseFloat(grade)
+  const passing  = !isNaN(numGrade) && numGrade >= 75
+  const failing  = !isNaN(numGrade) && numGrade < 75
+
   return (
-    <div className="flex gap-5 h-full">
-      {/* List */}
-      <div className="w-72 flex-shrink-0 bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
-        <div className="px-4 py-3.5 border-b border-slate-100">
-          <h3 className="text-sm font-semibold text-slate-900">Submissions</h3>
-          <p className="text-xs text-slate-500">{submissions.filter(s => s.status === 'pending').length} pending review</p>
+    <div className="space-y-5 max-w-[1200px]">
+      <div>
+        <h1 className="font-display text-xl font-800 text-slate-900">Grading Center</h1>
+        <p className="text-sm text-slate-500 mt-0.5"><span className="font-semibold text-red-500">{pending.length}</span> pending · {graded.length} graded</p>
+      </div>
+
+      <div className="flex gap-5 h-[680px]">
+        {/* Left: submission list */}
+        <div className="w-80 flex-shrink-0 flex flex-col bg-white rounded-xl border border-slate-200 overflow-hidden">
+          {/* Tabs */}
+          <div className="flex border-b border-slate-100">
+            {(['pending', 'graded'] as const).map(t => (
+              <button
+                key={t}
+                onClick={() => setTab(t)}
+                className={`flex-1 py-3 text-sm font-medium transition-colors capitalize ${tab === t ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                {t} ({t === 'pending' ? pending.length : graded.length})
+              </button>
+            ))}
+          </div>
+
+          {/* List */}
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+            {list.map(s => (
+              <button
+                key={s.id}
+                onClick={() => setSelected(s)}
+                className={`w-full text-left p-4 hover:bg-slate-50 transition-colors ${selected.id === s.id ? 'bg-blue-50 border-l-2 border-blue-600' : ''}`}
+              >
+                <div className="flex items-start gap-3">
+                  <Avatar name={s.student} size="sm" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-1">
+                      <p className="text-sm font-semibold text-slate-900 truncate">{s.student}</p>
+                      <span className="text-xs text-slate-400 flex-shrink-0">{s.submitted}</span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5 truncate">{s.assignment}</p>
+                    <p className="text-xs text-slate-400 mt-0.5 truncate">{s.course}</p>
+                  </div>
+                  <ChevronRight className="w-3.5 h-3.5 text-slate-300 flex-shrink-0 mt-0.5" />
+                </div>
+              </button>
+            ))}
+            {list.length === 0 && (
+              <div className="p-8 text-center text-slate-400 text-sm">
+                <CheckCircle className="w-8 h-8 mx-auto mb-2 text-slate-200" />
+                All caught up!
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
-          {submissions.map(s => (
-            <button
-              key={s.id}
-              onClick={() => setSelected(s)}
-              className={`w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors ${selected.id === s.id ? 'bg-blue-50 border-r-2 border-blue-600' : ''}`}
-            >
-              <div className="flex items-start gap-2.5">
-                <Avatar name={s.student} size="xs" />
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-900 truncate">{s.student}</p>
-                  <p className="text-xs text-slate-500 truncate">{s.assignment}</p>
-                  <div className="flex items-center gap-1 mt-1">
-                    {s.status === 'pending' ? (
-                      <><Clock className="w-3 h-3 text-amber-500" /><span className="text-xs text-amber-600 font-medium">Pending</span></>
-                    ) : (
-                      <><CheckCircle className="w-3 h-3 text-emerald-500" /><span className="text-xs text-emerald-600 font-medium">Graded {s.grade}/{s.maxMarks}</span></>
-                    )}
+
+        {/* Right: grading panel */}
+        <div className="flex-1 flex flex-col bg-white rounded-xl border border-slate-200 overflow-hidden">
+          {/* Header */}
+          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <Avatar name={selected.student} />
+              <div>
+                <p className="font-semibold text-slate-900 text-sm">{selected.student}</p>
+                <p className="text-xs text-slate-500">{selected.assignment} · {selected.course}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {selected.status === 'pending'
+                ? <Badge variant="warning" dot><Clock className="w-3 h-3 inline mr-1" />Pending</Badge>
+                : <Badge variant="success" dot><CheckCircle className="w-3 h-3 inline mr-1" />Graded</Badge>
+              }
+              <span className="text-xs text-slate-400">{selected.submitted}</span>
+            </div>
+          </div>
+
+          {/* Submission preview */}
+          <div className="flex-1 overflow-y-auto p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <FileText className="w-4 h-4 text-slate-400" />
+              <h3 className="text-sm font-semibold text-slate-700">Submission Preview</h3>
+            </div>
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 text-sm text-slate-700 leading-relaxed mb-5">
+              {selected.preview}
+              <p className="text-slate-400 mt-3">[Full submission content would load here from the LMS storage...]</p>
+            </div>
+
+            {/* Grade input */}
+            {selected.status === 'pending' && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-semibold text-slate-700">Grade Submission</h3>
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <label className="block text-xs text-slate-500 mb-1.5">Score (0–100)</label>
+                    <div className={`flex items-center gap-2 border-2 rounded-xl px-3 h-11 w-32 transition-colors ${passing ? 'border-emerald-400 bg-emerald-50' : failing ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white'}`}>
+                      <input
+                        type="number"
+                        min={0} max={100}
+                        value={grade}
+                        onChange={e => setGrade(e.target.value)}
+                        placeholder="0–100"
+                        className="w-full text-lg font-bold bg-transparent outline-none text-slate-900 tabular-nums"
+                      />
+                      <span className="text-slate-400 text-sm">%</span>
+                    </div>
+                    {passing && <p className="text-xs text-emerald-600 font-semibold mt-1.5 flex items-center gap-1"><CheckCircle className="w-3 h-3" />Pass</p>}
+                    {failing && <p className="text-xs text-red-500 font-semibold mt-1.5 flex items-center gap-1"><AlertCircle className="w-3 h-3" />Fail (min 75%)</p>}
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-xs text-slate-500 mb-1.5">Feedback (optional)</label>
+                    <textarea
+                      rows={4}
+                      value={feedback}
+                      onChange={e => setFeedback(e.target.value)}
+                      placeholder="Write feedback for the student…"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 bg-slate-50 outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 transition-all resize-none"
+                    />
                   </div>
                 </div>
+                <Button icon={<Send className="w-3.5 h-3.5" />} onClick={submitGrade} disabled={!grade}>
+                  Submit Grade
+                </Button>
               </div>
-            </button>
-          ))}
-        </div>
-      </div>
+            )}
 
-      {/* Grading panel */}
-      <div className="flex-1 min-w-0 space-y-4">
-        <div className="bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div>
-              <h2 className="text-base font-semibold text-slate-900">{selected.assignment}</h2>
-              <p className="text-sm text-slate-500">{selected.course}</p>
-            </div>
-            <Badge variant={selected.status === 'pending' ? 'warning' : 'success'}>{selected.status}</Badge>
-          </div>
-          <div className="flex items-center gap-3 mb-4">
-            <Avatar name={selected.student} size="sm" />
-            <div>
-              <p className="text-sm font-medium text-slate-900">{selected.student}</p>
-              <p className="text-xs text-slate-500">Submitted {selected.submitted}</p>
-            </div>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Submitted Files</p>
-            <div className="flex flex-wrap gap-2">
-              {selected.files.map(f => (
-                <div key={f} className="flex items-center gap-2 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700">
-                  <FileText className="w-3.5 h-3.5 text-blue-500" />{f}
+            {selected.status === 'graded' && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
+                <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-semibold text-emerald-800">Already graded</p>
+                  <p className="text-xs text-emerald-700 mt-0.5">This submission has been reviewed and feedback was sent to the student.</p>
                 </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
-          <h3 className="text-sm font-semibold text-slate-900">Grade Submission</h3>
-          {selected.status === 'graded' && (
-            <div className="flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-              <CheckCircle className="w-4 h-4 text-emerald-500" />
-              <p className="text-sm text-emerald-700">Already graded: <strong>{selected.grade}/{selected.maxMarks}</strong></p>
-            </div>
-          )}
-          <div className="flex items-center gap-3">
-            <div className="flex-1">
-              <label className="text-sm font-medium text-slate-700 block mb-1.5">Grade</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={grade}
-                  onChange={e => setGrade(e.target.value)}
-                  placeholder="0"
-                  max={selected.maxMarks}
-                  className="w-24 h-9 border border-slate-300 rounded-lg px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="text-sm text-slate-500">/ {selected.maxMarks}</span>
-                {grade && (
-                  <span className={`text-xs font-medium px-2 py-1 rounded ${Number(grade) / selected.maxMarks >= 0.6 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
-                    {Math.round((Number(grade) / selected.maxMarks) * 100)}%
-                    {Number(grade) / selected.maxMarks >= 0.6 ? ' — Pass' : ' — Fail'}
-                  </span>
-                )}
               </div>
-            </div>
-          </div>
-          <div>
-            <label className="text-sm font-medium text-slate-700 block mb-1.5">Feedback to Student</label>
-            <textarea
-              value={feedback}
-              onChange={e => setFeedback(e.target.value)}
-              rows={4}
-              placeholder="Provide detailed feedback to help the student improve..."
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none bg-white"
-            />
-          </div>
-          <div className="flex gap-3 justify-end">
-            <Button variant="outline">Save Draft</Button>
-            <Button onClick={handleSubmit} disabled={!grade}>Return Grade</Button>
+            )}
           </div>
         </div>
-
-        {toast && (
-          <div className="fixed bottom-6 right-6 flex items-center gap-2 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-lg shadow-lg">
-            <CheckCircle className="w-4 h-4 text-emerald-500" />
-            <p className="text-sm font-medium text-emerald-800">Grade submitted successfully!</p>
-          </div>
-        )}
       </div>
+
+      {/* Toast */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl text-sm font-semibold">
+          <CheckCircle className="w-4 h-4 text-emerald-400" />Grade submitted successfully!
+        </div>
+      )}
     </div>
   )
 }

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { adminApi } from '../../api';
 import { AuditLogItem } from '../../types';
-import { LoadingSpinner } from '../../components/common/LoadingSpinner';
+import { TableSkeleton } from '../../components/ui/Skeletons';
+import EmptyState from '../../components/ui/EmptyState';
+import Badge from '../../components/ui/Badge';
 import { History, Shield, Clock, Search } from 'lucide-react';
 
 export const AuditLogsPage: React.FC = () => {
@@ -21,61 +23,62 @@ export const AuditLogsPage: React.FC = () => {
   }, []);
 
   return (
-    <div>
-      <div style={{ marginBottom: '2.5rem' }}>
-        <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>Platform Audit Trail</h1>
-        <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)' }}>
+    <div className="space-y-6 max-w-[1200px]">
+      <div>
+        <h1 className="font-display text-xl font-800 text-slate-900">Platform Audit Trail</h1>
+        <p className="text-sm text-slate-500 mt-0.5">
           Immutable administrative record of sensitive actions, status modifications, and security events.
         </p>
       </div>
 
-      {loading ? (
-        <LoadingSpinner message="Loading audit logs..." />
-      ) : logs.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-          <History size={36} color="var(--text-muted)" style={{ margin: '0 auto 1rem' }} />
-          <h4>No audit records found</h4>
-        </div>
-      ) : (
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Action</th>
-                <th>Target Entity</th>
-                <th>Target ID</th>
-                <th>Details</th>
-                <th>Timestamp</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => (
-                <tr key={log.id}>
-                  <td>
-                    <span style={{ fontWeight: 800, color: 'var(--primary)', fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
-                      {log.action}
-                    </span>
-                  </td>
-                  <td>
-                    <span className="badge badge-secondary" style={{ textTransform: 'uppercase' }}>
-                      {log.target_type}
-                    </span>
-                  </td>
-                  <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8125rem' }}>
-                    #{log.target_id || '—'}
-                  </td>
-                  <td style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
-                    {log.details ? JSON.stringify(log.details) : '—'}
-                  </td>
-                  <td style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                    {new Date(log.created_at).toLocaleString()}
-                  </td>
+      <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden premium-shadow">
+        {loading ? (
+          <TableSkeleton rows={10} />
+        ) : logs.length === 0 ? (
+          <EmptyState
+            icon={History}
+            title="No audit records found"
+            description="There are currently no audit logs recorded in the system."
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
+                  <th className="text-left px-5 py-3 font-semibold">Action</th>
+                  <th className="text-left px-4 py-3 font-semibold">Target Entity</th>
+                  <th className="text-left px-4 py-3 font-semibold">Target ID</th>
+                  <th className="text-left px-4 py-3 font-semibold">Details</th>
+                  <th className="text-right px-5 py-3 font-semibold">Timestamp</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <span className="font-semibold text-blue-600 font-mono text-xs">
+                        {log.action}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <Badge variant="muted">{log.target_type}</Badge>
+                    </td>
+                    <td className="px-4 py-3.5 font-mono text-xs text-slate-600">
+                      #{log.target_id || '—'}
+                    </td>
+                    <td className="px-4 py-3.5 text-xs text-slate-500 truncate max-w-xs">
+                      {log.details ? JSON.stringify(log.details) : '—'}
+                    </td>
+                    <td className="px-5 py-3.5 text-xs text-slate-400 text-right">
+                      {new Date(log.created_at).toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

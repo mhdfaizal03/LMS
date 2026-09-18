@@ -3,8 +3,8 @@ import { useSearchParams } from 'react-router-dom';
 import { Course, Category, DifficultyLevel } from '../../types';
 import { courseApi } from '../../api';
 import { CourseCard } from '../../components/course/CourseCard';
-import { LoadingSpinner } from '../../components/common/LoadingSpinner';
-import { EmptyState } from '../../components/common/EmptyState';
+import { CourseCardSkeleton } from '../../components/ui/Skeletons';
+import EmptyState from '../../components/ui/EmptyState';
 import { Search, Filter, BookOpen } from 'lucide-react';
 
 export const CoursesCatalogPage: React.FC = () => {
@@ -51,49 +51,36 @@ export const CoursesCatalogPage: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '3rem 1.5rem' }}>
+    <div className="max-w-[1400px] mx-auto px-6 py-12 space-y-8">
       {/* Header */}
-      <div style={{ marginBottom: '2.5rem' }}>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.5rem' }}>
+      <div>
+        <h1 className="font-display text-3xl md:text-4xl font-800 text-slate-900 mb-2">
           Explore All Courses
         </h1>
-        <p style={{ fontSize: '1rem', color: 'var(--text-secondary)' }}>
+        <p className="text-base text-slate-500">
           Discover cutting-edge engineering and data courses created by industry experts.
         </p>
       </div>
 
       {/* Search & Filter Bar */}
-      <div
-        className="card"
-        style={{
-          padding: '1.25rem',
-          marginBottom: '2rem',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
+      <div className="bg-white rounded-3xl border border-slate-100 p-5 premium-shadow flex flex-wrap gap-4 items-center justify-between">
         {/* Search input */}
-        <div style={{ position: 'relative', flex: '1 1 300px' }}>
-          <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', top: '12px', left: '14px' }} />
+        <div className="relative flex-1 min-w-[280px]">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
           <input
             type="text"
-            className="form-input"
+            className="w-full pl-11 pr-4 h-11 border border-slate-200 rounded-xl text-sm text-slate-700 bg-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400"
             placeholder="Search by title, description, or keyword..."
-            style={{ paddingLeft: '42px' }}
             value={search}
             onChange={(e) => updateFilters('search', e.target.value || null)}
           />
         </div>
 
         {/* Filters */}
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="flex gap-3 flex-wrap items-center">
           {/* Category */}
           <select
-            className="form-select"
-            style={{ width: 'auto' }}
+            className="h-11 px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400"
             value={selectedCategory || ''}
             onChange={(e) => updateFilters('category_id', e.target.value || null)}
           >
@@ -105,8 +92,7 @@ export const CoursesCatalogPage: React.FC = () => {
 
           {/* Difficulty */}
           <select
-            className="form-select"
-            style={{ width: 'auto' }}
+            className="h-11 px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400"
             value={selectedDifficulty || ''}
             onChange={(e) => updateFilters('difficulty', e.target.value || null)}
           >
@@ -118,8 +104,7 @@ export const CoursesCatalogPage: React.FC = () => {
 
           {/* Sort By */}
           <select
-            className="form-select"
-            style={{ width: 'auto' }}
+            className="h-11 px-4 py-2 border border-slate-200 rounded-xl text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-400 font-medium"
             value={sortBy}
             onChange={(e) => updateFilters('sort_by', e.target.value)}
           >
@@ -133,17 +118,21 @@ export const CoursesCatalogPage: React.FC = () => {
 
       {/* Results */}
       {loading ? (
-        <LoadingSpinner message="Searching courses..." />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map(i => <CourseCardSkeleton key={i} />)}
+        </div>
       ) : courses.length === 0 ? (
-        <EmptyState
-          icon={BookOpen}
-          title="No courses found"
-          description="Try adjusting your search query or removing active filters to discover available content."
-          actionText="Clear All Filters"
-          onAction={() => setSearchParams({})}
-        />
+        <div className="bg-white rounded-3xl border border-slate-100 premium-shadow">
+          <EmptyState
+            icon={BookOpen}
+            title="No courses found"
+            description="Try adjusting your search query or removing active filters to discover available content."
+            actionLabel="Clear All Filters"
+            onAction={() => setSearchParams({})}
+          />
+        </div>
       ) : (
-        <div className="grid-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
           {courses.map((course) => (
             <CourseCard key={course.id} course={course} />
           ))}

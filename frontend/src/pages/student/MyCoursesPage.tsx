@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { enrollmentApi } from '../../api';
 import { Enrollment } from '../../types';
 import { CourseCard } from '../../components/course/CourseCard';
-import { LoadingSpinner } from '../../components/common/LoadingSpinner';
-import { EmptyState } from '../../components/common/EmptyState';
+import { CourseCardSkeleton } from '../../components/ui/Skeletons';
+import EmptyState from '../../components/ui/EmptyState';
 import { BookOpen } from 'lucide-react';
 
 export const MyCoursesPage: React.FC = () => {
@@ -30,35 +30,32 @@ export const MyCoursesPage: React.FC = () => {
   });
 
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+    <div className="space-y-6 max-w-[1200px]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>My Enrolled Courses</h1>
-          <p style={{ fontSize: '0.9375rem', color: 'var(--text-secondary)' }}>
+          <h1 className="font-display text-xl font-800 text-slate-900">My Enrolled Courses</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
             Track your ongoing curriculum, video playback positions, and completed modules.
           </p>
         </div>
 
         {/* Filter tabs */}
-        <div style={{ display: 'flex', backgroundColor: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '4px', gap: '4px' }}>
+        <div className="flex bg-white border border-slate-200 rounded-xl p-1 gap-1 shadow-sm">
           <button
             onClick={() => setFilter('all')}
-            className={`btn btn-sm ${filter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ border: 'none' }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'all' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             All ({enrollments.length})
           </button>
           <button
             onClick={() => setFilter('in_progress')}
-            className={`btn btn-sm ${filter === 'in_progress' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ border: 'none' }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'in_progress' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             In Progress ({enrollments.filter((e) => e.progress_percentage < 100).length})
           </button>
           <button
             onClick={() => setFilter('completed')}
-            className={`btn btn-sm ${filter === 'completed' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ border: 'none' }}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === 'completed' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             Completed ({enrollments.filter((e) => e.progress_percentage >= 100).length})
           </button>
@@ -66,17 +63,21 @@ export const MyCoursesPage: React.FC = () => {
       </div>
 
       {loading ? (
-        <LoadingSpinner message="Loading your courses..." />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {[1, 2, 3, 4, 5, 6].map(i => <CourseCardSkeleton key={i} />)}
+        </div>
       ) : filtered.length === 0 ? (
-        <EmptyState
-          icon={BookOpen}
-          title="No courses in this tab"
-          description="Start learning new skills by enrolling in courses from our catalog."
-          actionText="Browse Courses"
-          onAction={() => (window.location.href = '/courses')}
-        />
+        <div className="bg-white rounded-3xl border border-slate-100 premium-shadow">
+          <EmptyState
+            icon={BookOpen}
+            title="No courses in this tab"
+            description="Start learning new skills by enrolling in courses from our catalog."
+            actionLabel="Browse Courses"
+            onAction={() => (window.location.href = '/courses')}
+          />
+        </div>
       ) : (
-        <div className="grid-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filtered.map((enr) => enr.course && (
             <CourseCard
               key={enr.id}

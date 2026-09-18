@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import {
   ChevronLeft, ChevronRight, CheckCircle, Play, FileText, HelpCircle,
   X, Menu, BookOpen, Volume2, Upload, Send, Loader2, Award, Check,
-  MessageSquare, Download, Paperclip, Sparkles, BookCheck, Clock
+  MessageSquare, Download, Paperclip, Sparkles, Clock, LayoutGrid
 } from 'lucide-react'
 import Button from '../../components/ui/Button'
 import ProgressBar from '../../components/ui/ProgressBar'
@@ -62,7 +62,6 @@ export default function LearningPage() {
           const courseObj = cData.value
           setCourse(courseObj)
 
-          // Select first available lesson if none selected
           const allLessons = (courseObj.sections || []).flatMap(s => s.lessons || [])
           if (allLessons.length > 0) {
             setCurrentLesson(allLessons[0])
@@ -78,7 +77,6 @@ export default function LearningPage() {
     return () => { active = false }
   }, [activeCourseId])
 
-  // Load student notes from localStorage per lesson
   useEffect(() => {
     if (currentLesson && activeCourseId) {
       const saved = localStorage.getItem(`notes_${activeCourseId}_${currentLesson.id}`) || ''
@@ -93,7 +91,6 @@ export default function LearningPage() {
     }
   }
 
-  // Load lesson details (quizzes or assignments) when current lesson changes
   useEffect(() => {
     if (!currentLesson) return
     setQuiz(null)
@@ -127,9 +124,26 @@ export default function LearningPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[500px] gap-3 bg-slate-950 text-white -m-6 h-[calc(100vh-3.5rem)]">
-        <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
-        <p className="text-sm text-slate-400">Loading course curriculum and stream player...</p>
+      <div className="-m-6 flex h-[calc(100vh-3.5rem)] bg-[#0D1117] overflow-hidden">
+        <div className="w-[320px] bg-[#161B22] border-r border-white/10 p-6 flex flex-col gap-4">
+          <div className="h-6 w-48 bg-white/5 rounded animate-pulse" />
+          <div className="h-4 w-full bg-white/5 rounded animate-pulse mt-4" />
+          <div className="h-12 w-full bg-white/5 rounded animate-pulse" />
+          <div className="h-12 w-full bg-white/5 rounded animate-pulse" />
+          <div className="h-12 w-full bg-white/5 rounded animate-pulse" />
+        </div>
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="h-14 w-full bg-[#161B22] border-b border-white/10 animate-pulse" />
+          <div className="h-[400px] w-full bg-black animate-pulse" />
+          <div className="flex-1 bg-white p-10">
+             <div className="max-w-4xl mx-auto space-y-6">
+                <div className="h-10 w-3/4 bg-slate-200 rounded animate-pulse" />
+                <div className="h-4 w-full bg-slate-200 rounded animate-pulse" />
+                <div className="h-4 w-full bg-slate-200 rounded animate-pulse" />
+                <div className="h-4 w-2/3 bg-slate-200 rounded animate-pulse" />
+             </div>
+          </div>
+        </div>
       </div>
     )
   }
@@ -148,7 +162,6 @@ export default function LearningPage() {
       await enrollmentApi.updateProgress(currentLesson.id, { is_completed: true })
       setCompletedLessonIds(prev => new Set(prev).add(currentLesson.id))
 
-      // If next lesson exists, move to it
       if (currentIndex < allLessons.length - 1) {
         setCurrentLesson(allLessons[currentIndex + 1])
       }
@@ -235,549 +248,357 @@ export default function LearningPage() {
   const isCurrentDone = currentLesson ? completedLessonIds.has(currentLesson.id) : false
 
   return (
-    <div className="-m-6 flex h-[calc(100vh-3.5rem)] bg-slate-950 text-slate-100 overflow-hidden">
-      {/* Sidebar navigation */}
+    <div className="-m-6 flex h-[calc(100vh-3.5rem)] bg-[#0D1117] overflow-hidden">
+      
+      {/* Curriculum sidebar */}
       <div
-        className={`${
-          sidebarOpen ? 'w-80' : 'w-0 overflow-hidden'
-        } transition-all duration-200 bg-slate-900 flex flex-col border-r border-slate-800 flex-shrink-0`}
+        className="flex-shrink-0 flex flex-col transition-all duration-200 overflow-hidden relative z-10"
+        style={{ width: sidebarOpen ? 320 : 0, borderRight: sidebarOpen ? '1px solid rgba(255,255,255,0.06)' : 'none', background: '#161B22' }}
       >
-        <div className="p-4 border-b border-slate-800">
-          <div className="flex items-center justify-between mb-3">
-            <Link
-              to={`/student/courses/${course?.id}`}
-              className="flex items-center gap-2 text-white hover:text-blue-400 transition-colors truncate max-w-[220px]"
-            >
-              <BookOpen className="w-4 h-4 text-blue-500 flex-shrink-0" />
-              <span className="text-sm font-semibold truncate">{course?.title || 'Course Curriculum'}</span>
-            </Link>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className="text-slate-400 hover:text-white p-1 rounded cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
+        <div className="flex items-center justify-between px-4 py-3.5 border-b" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <LayoutGrid className="w-4 h-4 text-blue-400 flex-shrink-0" />
+            <span className="text-sm font-semibold text-white truncate pr-2">{course?.title || 'Curriculum'}</span>
           </div>
-          <ProgressBar value={progressPct} color="bg-blue-500" showLabel />
-          <div className="flex items-center justify-between mt-1.5 text-xs text-slate-400">
-            <span>{doneCount} of {allLessons.length} completed</span>
-            {isAllComplete && (
-              <span className="text-emerald-400 font-semibold flex items-center gap-1">
-                <Sparkles className="w-3 h-3" /> Completed
-              </span>
-            )}
-          </div>
+          <button onClick={() => setSidebarOpen(false)} className="text-slate-500 hover:text-slate-300 transition-colors flex-shrink-0 p-1">
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        {/* Section and lesson list */}
-        <div className="flex-1 overflow-y-auto scrollbar-hidden py-2 divide-y divide-slate-800/60">
+        <div className="px-4 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+          <div className="flex justify-between text-xs mb-2 text-slate-400">
+            <span>{doneCount} of {allLessons.length} lessons</span>
+            <span className="text-blue-400 font-semibold">{progressPct}%</span>
+          </div>
+          <ProgressBar value={progressPct} color="bg-blue-500" size="md" showLabel={false} />
+        </div>
+
+        <div className="flex-1 overflow-y-auto scrollbar-none py-2 pb-20">
           {sections.map((section, si) => (
-            <div key={section.id || si} className="py-2">
-              <p className="px-4 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                {section.title}
-              </p>
-              <div className="space-y-0.5 mt-1">
-                {(section.lessons || []).map((lesson: Lesson) => {
-                  const isCurrent = lesson.id === currentLesson?.id
-                  const isDone = completedLessonIds.has(lesson.id)
-
-                  return (
-                    <button
-                      key={lesson.id}
-                      onClick={() => setCurrentLesson(lesson)}
-                      className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors cursor-pointer ${
-                        isCurrent
-                          ? 'bg-blue-600/20 text-blue-200 border-r-2 border-blue-500'
-                          : 'hover:bg-slate-800/80 text-slate-300'
-                      }`}
-                    >
+            <div key={section.id || si}>
+              <p className="px-4 pt-4 pb-2 text-xs font-bold uppercase tracking-widest text-slate-500">{section.title}</p>
+              {(section.lessons || []).map(lesson => {
+                const isCurrent = lesson.id === currentLesson?.id
+                const isDone = completedLessonIds.has(lesson.id)
+                return (
+                  <button
+                    key={lesson.id}
+                    onClick={() => setCurrentLesson(lesson)}
+                    className={[
+                      'w-full flex items-center gap-3 px-4 py-3 text-left transition-colors relative',
+                      isCurrent ? 'bg-blue-600/10' : 'hover:bg-white/5',
+                    ].join(' ')}
+                  >
+                    {isCurrent && <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-blue-500" />}
+                    <div className="flex-shrink-0">
                       {isDone ? (
-                        <CheckCircle className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                        <CheckCircle className="w-4 h-4 text-emerald-400" />
                       ) : (
-                        <div className="w-4 h-4 rounded-full border border-slate-600 flex-shrink-0" />
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isCurrent ? 'border-blue-500 bg-blue-600/20' : 'border-slate-600'}`}>
+                          {isCurrent && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" />}
+                        </div>
                       )}
-                      {lesson.lesson_type === 'video' && <Play className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" />}
-                      {lesson.lesson_type === 'audio' && <Volume2 className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0" />}
-                      {lesson.lesson_type === 'quiz' && <HelpCircle className="w-3.5 h-3.5 text-violet-400 flex-shrink-0" />}
-                      {lesson.lesson_type === 'assignment' && <FileText className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />}
-                      {lesson.lesson_type === 'text' && <FileText className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />}
-
-                      <span className={`text-xs flex-1 truncate font-medium ${isCurrent ? 'text-white' : ''}`}>
-                        {lesson.title}
-                      </span>
-                      {lesson.duration_minutes && (
-                        <span className="text-[10px] text-slate-500">{lesson.duration_minutes}m</span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
+                    </div>
+                    <span className={`flex-1 text-sm truncate leading-snug ${isCurrent ? 'text-white font-semibold' : isDone ? 'text-slate-500' : 'text-slate-300'}`}>
+                      {lesson.title}
+                    </span>
+                    {lesson.duration_minutes && (
+                      <span className="text-[10px] text-slate-600 flex-shrink-0">{lesson.duration_minutes}m</span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
           ))}
         </div>
 
-        {/* Certificate claim banner in sidebar if completed */}
         {isAllComplete && (
-          <div className="p-4 bg-gradient-to-tr from-emerald-950 to-teal-900 border-t border-emerald-800/60">
-            <Link
-              to="/student/certificates"
-              className="flex items-center gap-2 text-xs font-bold text-emerald-300 hover:text-white transition-colors"
-            >
-              <Award className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-              <span>Claim Course Certificate</span>
+          <div className="absolute bottom-0 left-0 right-0 p-4 bg-emerald-900/90 backdrop-blur border-t border-emerald-800/60 z-20">
+            <Link to="/student/certificates" className="flex items-center justify-center gap-2 text-xs font-bold text-emerald-100 hover:text-white transition-colors">
+              <Award className="w-4 h-4 text-emerald-400" /> Claim Certificate
             </Link>
           </div>
         )}
       </div>
 
-      {/* Main player & content area */}
-      <div className="flex-1 flex flex-col min-w-0 bg-slate-950">
+      {/* Main content area */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
         {/* Top header bar */}
-        <div className="h-14 border-b border-slate-800 px-5 flex items-center justify-between flex-shrink-0 bg-slate-900/60">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-6 py-3 flex-shrink-0 relative z-10" style={{ background: '#161B22', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+          <div className="flex items-center gap-4">
             {!sidebarOpen && (
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="text-slate-400 hover:text-white p-1 rounded cursor-pointer"
-              >
+              <button onClick={() => setSidebarOpen(true)} className="p-1 rounded-md text-slate-400 hover:text-white hover:bg-white/10 transition-colors">
                 <Menu className="w-5 h-5" />
               </button>
             )}
-            <h3 className="text-sm font-semibold text-white truncate max-w-md">
-              {currentLesson?.title || 'Lesson Player'}
-            </h3>
+            <button onClick={() => navigate('/student')} className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-white transition-colors">
+              <ChevronLeft className="w-4 h-4" /> Back to Dashboard
+            </button>
+            <div className="hidden md:flex flex-col ml-4 border-l border-white/10 pl-4">
+              <span className="text-[10px] text-slate-500 uppercase tracking-widest">{course?.title}</span>
+              <span className="text-sm font-semibold text-white leading-tight">{currentLesson?.title}</span>
+            </div>
           </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              disabled={currentIndex <= 0}
-              onClick={() => setCurrentLesson(allLessons[currentIndex - 1])}
-              className="p-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none text-slate-300 cursor-pointer"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-xs text-slate-400">
-              {currentIndex + 1} / {allLessons.length}
-            </span>
-            <button
-              disabled={currentIndex >= allLessons.length - 1}
-              onClick={() => setCurrentLesson(allLessons[currentIndex + 1])}
-              className="p-1.5 rounded-lg border border-slate-700 hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none text-slate-300 cursor-pointer"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="ghost" disabled={currentIndex <= 0} onClick={() => setCurrentLesson(allLessons[currentIndex - 1])} className="text-slate-400 hover:text-white hover:bg-white/10" icon={<ChevronLeft className="w-3.5 h-3.5" />}>Prev</Button>
+            <Button size="sm" variant="ghost" disabled={currentIndex >= allLessons.length - 1} onClick={() => setCurrentLesson(allLessons[currentIndex + 1])} className="text-slate-400 hover:text-white hover:bg-white/10" iconRight={<ChevronRight className="w-3.5 h-3.5" />}>Next</Button>
           </div>
         </div>
 
-        {/* Content body */}
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center">
-          <div className="w-full max-w-4xl space-y-6">
-            {/* Completion Banner if all complete */}
-            {isAllComplete && (
-              <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-teal-950/60 to-slate-900 border border-emerald-500/30 flex items-center justify-between gap-4 shadow-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                    <Award className="w-6 h-6" />
+        {/* Video / Audio area (always top if media) */}
+        {(currentLesson?.lesson_type === 'video' || currentLesson?.lesson_type === 'audio') && (
+          <div className="flex-shrink-0 bg-black flex items-center justify-center relative border-b" style={{ height: 'clamp(240px, 50vh, 600px)', borderColor: 'rgba(255,255,255,0.07)' }}>
+            <UniversalPlayer
+              url={currentLesson.video_url || currentLesson.content}
+              title={currentLesson.title}
+              poster={course?.thumbnail_url}
+              onEnded={handleVideoEnded}
+              className="w-full h-full rounded-none border-none shadow-none"
+            />
+          </div>
+        )}
+
+        {/* Lesson content / Tabs */}
+        <div className="flex-1 overflow-y-auto bg-white">
+          <div className="max-w-4xl mx-auto px-6 lg:px-10 py-10 space-y-8">
+            
+            {/* Header for non-media lessons */}
+            {currentLesson?.lesson_type !== 'video' && currentLesson?.lesson_type !== 'audio' && (
+              <div className="pb-6 border-b border-slate-200 flex justify-between items-start gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-700">
+                      {currentLesson?.lesson_type} Module
+                    </span>
+                    <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> {currentLesson?.duration_minutes || 5} mins
+                    </span>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white">Course 100% Completed!</h4>
-                    <p className="text-xs text-emerald-300/80">You have completed all curriculum modules.</p>
-                  </div>
+                  <h1 className="font-display text-2xl md:text-3xl font-800 text-slate-900 leading-tight">
+                    {currentLesson?.title}
+                  </h1>
                 </div>
-                <Link to="/student/certificates">
-                  <Button size="sm" icon={<Award className="w-4 h-4" />}>
-                    View Certificate
-                  </Button>
-                </Link>
-              </div>
-            )}
-
-            {/* Video / Audio Lesson via Universal Player */}
-            {(currentLesson?.lesson_type === 'video' || currentLesson?.lesson_type === 'audio') && (
-              <UniversalPlayer
-                url={currentLesson.video_url || currentLesson.content}
-                title={currentLesson.title}
-                poster={course?.thumbnail_url}
-                onEnded={handleVideoEnded}
-              />
-            )}
-
-            {/* Dedicated Article / Text Lesson Reading Workstation */}
-            {currentLesson?.lesson_type === 'text' && (
-              <div className="rounded-3xl p-8 bg-slate-900 border border-slate-800 shadow-2xl space-y-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2.5 py-1 rounded-md bg-blue-500/20 text-blue-400 font-bold text-[10px] uppercase tracking-wider">
-                        Article Module
-                      </span>
-                      <span className="flex items-center gap-1 text-[11px] text-slate-400">
-                        <Clock className="w-3.5 h-3.5" />
-                        {currentLesson.duration_minutes || Math.max(2, Math.ceil((currentLesson.content?.length || 500) / 400))} min read
-                      </span>
-                    </div>
-                    <h2 className="text-xl font-bold text-white tracking-tight">{currentLesson.title}</h2>
-                  </div>
-
+                {currentLesson?.lesson_type === 'text' && (
                   <Button
-                    variant={isCurrentDone ? 'secondary' : 'default'}
+                    variant={isCurrentDone ? 'outline' : 'primary'}
                     disabled={markingComplete}
                     onClick={handleMarkCompleted}
-                    icon={<CheckCircle className="w-4 h-4" />}
+                    icon={<CheckCircle className={`w-4 h-4 ${isCurrentDone ? 'text-emerald-500' : ''}`} />}
                   >
                     {isCurrentDone ? 'Completed' : 'Mark as Read'}
                   </Button>
-                </div>
-
-                <div className="prose prose-invert max-w-none text-slate-200 text-sm leading-relaxed space-y-4">
-                  {currentLesson.content ? (
-                    <div className="bg-slate-950/60 rounded-2xl p-6 border border-slate-800/80 font-sans whitespace-pre-line leading-7 text-slate-200">
-                      {currentLesson.content}
-                    </div>
-                  ) : (
-                    <div className="p-8 text-center text-slate-400 bg-slate-950/40 rounded-2xl border border-slate-800/60">
-                      <BookOpen className="w-8 h-8 text-blue-400 mx-auto mb-2 opacity-80" />
-                      <p className="text-xs">Reading notes and architectural guide for this module.</p>
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-4 rounded-2xl bg-blue-950/30 border border-blue-800/30 flex items-center justify-between">
-                  <span className="text-xs text-blue-300">Finished reviewing this article?</span>
-                  <button
-                    onClick={handleMarkCompleted}
-                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all cursor-pointer shadow-md flex items-center gap-2"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>Complete & Next Lesson</span>
-                  </button>
-                </div>
+                )}
               </div>
             )}
 
-            {/* Quiz Lesson */}
-            {currentLesson?.lesson_type === 'quiz' && (
-              <div className="rounded-3xl p-8 bg-slate-900 border border-slate-800 shadow-2xl space-y-6">
-                <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="px-2.5 py-1 rounded-md bg-violet-500/20 text-violet-400 font-bold text-[10px] uppercase tracking-wider">
-                        Interactive Knowledge Check
-                      </span>
-                    </div>
-                    <h3 className="text-lg font-bold text-white">{quiz?.title || currentLesson.title}</h3>
-                    <p className="text-xs text-slate-400">Passing requirement: {quiz?.passing_score_percentage || (quiz as any)?.passing_score || 70}%</p>
+            {/* Text Lesson Content */}
+            {currentLesson?.lesson_type === 'text' && (
+              <div className="prose max-w-none text-slate-700 text-sm md:text-base leading-relaxed">
+                {currentLesson.content ? (
+                  <div className="whitespace-pre-line">{currentLesson.content}</div>
+                ) : (
+                  <div className="p-10 text-center text-slate-500 bg-slate-50 rounded-2xl border border-slate-100">
+                    <BookOpen className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                    <p>No content provided for this text module.</p>
                   </div>
-                  {quizSubmitted && (
-                    <Badge variant={Number(quizScore) >= (quiz?.passing_score_percentage || (quiz as any)?.passing_score || 70) ? 'success' : 'danger'}>
-                      Score: {quizScore}% {Number(quizScore) >= (quiz?.passing_score_percentage || (quiz as any)?.passing_score || 70) ? '(Passed)' : '(Retake Available)'}
-                    </Badge>
-                  )}
+                )}
+              </div>
+            )}
+
+            {/* Quiz Content */}
+            {currentLesson?.lesson_type === 'quiz' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                   <div>
+                     <p className="text-sm font-semibold text-slate-900">Passing requirement: {quiz?.passing_score_percentage || 70}%</p>
+                   </div>
+                   {quizSubmitted && (
+                     <Badge variant={Number(quizScore) >= (quiz?.passing_score_percentage || 70) ? 'success' : 'error'}>
+                       Score: {quizScore}% {Number(quizScore) >= (quiz?.passing_score_percentage || 70) ? '(Passed)' : '(Failed)'}
+                     </Badge>
+                   )}
                 </div>
 
-                <form onSubmit={handleQuizSubmit} className="space-y-6">
-                  {(quiz?.questions || []).length > 0 ? (
-                    quiz!.questions.map((q, idx) => (
-                      <div key={q.id} className="p-5 rounded-2xl bg-slate-800/60 border border-slate-700/60 space-y-3">
-                        <div className="flex items-start justify-between gap-3">
-                          <p className="text-sm font-semibold text-white leading-snug">
-                            <span className="text-blue-400 font-bold mr-1.5">{idx + 1}.</span> {q.question_text}
-                          </p>
-                          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-700 text-slate-300">
-                            {q.marks || 1} pt
-                          </span>
-                        </div>
-                        <div className="space-y-2 pt-1">
-                          {(Array.isArray(q.options) ? q.options : []).map((opt: any, oIdx: number) => {
-                            const optText = typeof opt === 'string' ? opt : (opt?.text || String(opt));
-                            const optVal = typeof opt === 'string' ? opt : (opt?.id || opt?.text || String(opt));
-                            const isChecked = selectedAnswers[q.id] === optVal;
-                            return (
-                              <label
-                                key={oIdx}
-                                className={`flex items-center gap-3 p-3.5 rounded-xl border text-xs cursor-pointer transition-all ${
-                                  isChecked
-                                    ? 'bg-blue-600/20 border-blue-500 text-white ring-1 ring-blue-500/50'
-                                    : 'bg-slate-800/40 border-slate-700/80 text-slate-300 hover:bg-slate-800 hover:border-slate-600'
-                                }`}
-                              >
-                                <input
-                                  type="radio"
-                                  name={`q_${q.id}`}
-                                  value={optVal}
-                                  checked={isChecked}
-                                  onChange={() => setSelectedAnswers(prev => ({ ...prev, [q.id]: optVal }))}
-                                  className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                                />
-                                <span className="font-medium leading-relaxed">{optText}</span>
-                              </label>
-                            );
-                          })}
-                        </div>
-
-                        {quizSubmitted && q.explanation && (
-                          <div className="mt-2 p-3 rounded-xl bg-slate-900/80 border border-slate-700/50 text-[11px] text-slate-300">
-                            <strong className="text-blue-400">Explanation:</strong> {q.explanation}
-                          </div>
-                        )}
+                <form onSubmit={handleQuizSubmit} className="space-y-8">
+                  {(quiz?.questions || []).map((q, idx) => (
+                    <div key={q.id} className="space-y-4">
+                      <h4 className="text-base font-semibold text-slate-900 leading-snug flex items-start gap-2">
+                        <span className="text-blue-600 font-bold shrink-0">{idx + 1}.</span> {q.question_text}
+                      </h4>
+                      <div className="space-y-2">
+                        {(Array.isArray(q.options) ? q.options : []).map((opt: any, oIdx: number) => {
+                          const optText = typeof opt === 'string' ? opt : (opt?.text || String(opt));
+                          const optVal = typeof opt === 'string' ? opt : (opt?.id || opt?.text || String(opt));
+                          const isChecked = selectedAnswers[q.id] === optVal;
+                          return (
+                            <label
+                              key={oIdx}
+                              className={`flex items-center gap-3 p-4 rounded-xl border transition-all cursor-pointer ${
+                                isChecked
+                                  ? 'bg-blue-50 border-blue-200 text-blue-900 ring-1 ring-blue-500'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                name={`q_${q.id}`}
+                                value={optVal}
+                                checked={isChecked}
+                                onChange={() => setSelectedAnswers(prev => ({ ...prev, [q.id]: optVal }))}
+                                className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="font-medium">{optText}</span>
+                            </label>
+                          );
+                        })}
                       </div>
-                    ))
-                  ) : (
-                    <div className="p-6 text-center text-xs text-slate-400 bg-slate-950/40 rounded-2xl border border-slate-800">
-                      Standard module evaluation. Click submit below to record your quiz completion.
+                      {quizSubmitted && q.explanation && (
+                        <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 text-sm text-blue-900">
+                          <strong className="font-semibold text-blue-700 block mb-1">Explanation</strong>
+                          {q.explanation}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  ))}
 
-                  {!quizSubmitted ? (
-                    <Button type="submit" className="w-full py-3">
-                      Submit Quiz Answers
-                    </Button>
-                  ) : (
-                    <div className="flex gap-3 justify-end">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setQuizSubmitted(false);
-                          setSelectedAnswers({});
-                        }}
-                      >
+                  <div className="pt-4 border-t border-slate-200 flex justify-end gap-3">
+                    {quizSubmitted && (
+                      <Button type="button" variant="outline" onClick={() => { setQuizSubmitted(false); setSelectedAnswers({}); }}>
                         Retake Quiz
                       </Button>
-                      <Button
-                        type="button"
-                        onClick={handleMarkCompleted}
-                        icon={<ChevronRight className="w-4 h-4" />}
-                      >
-                        Proceed to Next Module
+                    )}
+                    {!quizSubmitted ? (
+                      <Button type="submit">Submit Answers</Button>
+                    ) : (
+                      <Button type="button" onClick={handleMarkCompleted} iconRight={<ChevronRight className="w-4 h-4" />}>
+                        Continue to Next
                       </Button>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </form>
               </div>
             )}
 
-            {/* Assignment Lesson */}
+            {/* Assignment Content */}
             {currentLesson?.lesson_type === 'assignment' && (
-              <div className="rounded-2xl p-6 bg-slate-900 border border-slate-800 shadow-xl space-y-5">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">{assignment?.title || currentLesson.title}</h3>
-                    <p className="text-xs text-slate-400">Practical Assessment & File Submission</p>
-                  </div>
-                  {assignmentSubmitted && <Badge variant="success">Submitted for Grading</Badge>}
-                </div>
-
+              <div className="space-y-6">
                 {assignment?.instructions && (
-                  <div className="p-4 rounded-xl bg-slate-800/60 text-xs text-slate-300 leading-relaxed">
+                  <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 text-sm text-slate-700 leading-relaxed whitespace-pre-line">
                     {assignment.instructions}
                   </div>
                 )}
 
-                {!assignmentSubmitted ? (
-                  <form onSubmit={handleAssignmentSubmit} className="space-y-4">
-                    <div>
-                      <label className="text-xs font-medium text-slate-300 block mb-1.5">
-                        Submission Notes / GitHub Repository Link:
-                      </label>
-                      <textarea
-                        rows={4}
-                        required
-                        value={submissionText}
-                        onChange={e => setSubmissionText(e.target.value)}
-                        placeholder="Detail your solution, link your project or repo..."
-                        className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-medium text-slate-300 block mb-1.5">
-                        Attach Project Files (Uploaded to Cloudinary CDN / Storage):
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <label className="px-4 py-2 rounded-lg border border-slate-700 bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-slate-200 cursor-pointer flex items-center gap-2 transition-colors">
-                          <Upload className="w-3.5 h-3.5" />
-                          <span>{submittingFile ? 'Uploading...' : 'Choose File'}</span>
-                          <input type="file" onChange={handleFileUpload} className="hidden" />
-                        </label>
-                        {submittedFileUrl && (
-                          <span className="text-xs text-emerald-400 flex items-center gap-1">
-                            <Check className="w-3.5 h-3.5" /> File attached
-                          </span>
-                        )}
+                <div className="p-6 rounded-2xl border border-slate-200">
+                  <h4 className="font-semibold text-slate-900 mb-4">Your Submission</h4>
+                  {!assignmentSubmitted ? (
+                    <form onSubmit={handleAssignmentSubmit} className="space-y-5">
+                      <div>
+                        <label className="text-sm font-medium text-slate-700 block mb-2">Submission Notes / Link</label>
+                        <textarea
+                          rows={4}
+                          required
+                          value={submissionText}
+                          onChange={e => setSubmissionText(e.target.value)}
+                          placeholder="Provide any links or context..."
+                          className="w-full border border-slate-300 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
                       </div>
+                      <div>
+                        <label className="text-sm font-medium text-slate-700 block mb-2">Upload File</label>
+                        <div className="flex items-center gap-3">
+                          <label className="px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-sm font-semibold text-slate-700 cursor-pointer flex items-center gap-2">
+                            <Upload className="w-4 h-4" /> {submittingFile ? 'Uploading...' : 'Choose File'}
+                            <input type="file" onChange={handleFileUpload} className="hidden" />
+                          </label>
+                          {submittedFileUrl && <span className="text-sm text-emerald-600 flex items-center gap-1"><Check className="w-4 h-4" /> File attached</span>}
+                        </div>
+                      </div>
+                      <div className="pt-2">
+                        <Button type="submit" disabled={submittingFile}>Turn In Assignment</Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="text-center p-6 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-800">
+                      <CheckCircle className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                      <p className="font-semibold">Successfully submitted!</p>
+                      <p className="text-sm mt-1">Your instructor will review your work shortly.</p>
                     </div>
-
-                    <Button type="submit" disabled={submittingFile} className="w-full" icon={<Send className="w-4 h-4" />}>
-                      Turn In Assignment
-                    </Button>
-                  </form>
-                ) : (
-                  <div className="p-6 text-center text-emerald-400 font-medium text-xs bg-emerald-950/30 border border-emerald-800/40 rounded-xl">
-                    Your assignment has been submitted! Your instructor will review and provide a score.
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
 
-            {/* Tabbed Interactive Panel: Overview, Notes, Resources, Q&A */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-              {/* Tab navigation */}
-              <div className="flex items-center border-b border-slate-800 px-4 bg-slate-900/70">
-                <button
-                  onClick={() => setActiveTab('overview')}
-                  className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
-                    activeTab === 'overview'
-                      ? 'border-blue-500 text-white'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Overview & Description
-                </button>
-                <button
-                  onClick={() => setActiveTab('notes')}
-                  className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
-                    activeTab === 'notes'
-                      ? 'border-blue-500 text-white'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  My Notes
-                </button>
-                <button
-                  onClick={() => setActiveTab('resources')}
-                  className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
-                    activeTab === 'resources'
-                      ? 'border-blue-500 text-white'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Resources & Downloads
-                </button>
-                <button
-                  onClick={() => setActiveTab('qa')}
-                  className={`px-4 py-3 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
-                    activeTab === 'qa'
-                      ? 'border-blue-500 text-white'
-                      : 'border-transparent text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  Discussion & Q&A ({qaQuestions.length})
-                </button>
-              </div>
+            {/* Media Tabs Area */}
+            {(currentLesson?.lesson_type === 'video' || currentLesson?.lesson_type === 'audio') && (
+              <div className="mt-8 border-t border-slate-200 pt-8">
+                <div className="flex items-center gap-6 border-b border-slate-200 mb-6">
+                  {(['overview', 'notes', 'resources', 'qa'] as const).map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`pb-3 text-sm font-semibold capitalize transition-colors border-b-2 ${
+                        activeTab === tab ? 'border-blue-600 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {tab === 'qa' ? 'Q&A' : tab}
+                    </button>
+                  ))}
+                </div>
 
-              {/* Tab Content */}
-              <div className="p-6">
                 {activeTab === 'overview' && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-base font-semibold text-white">{currentLesson?.title}</h3>
-                        <p className="text-xs text-slate-400">Module details and learning outcomes</p>
-                      </div>
-
-                      <Button
-                        variant={isCurrentDone ? 'secondary' : 'default'}
-                        disabled={markingComplete}
-                        onClick={handleMarkCompleted}
-                        icon={<CheckCircle className="w-4 h-4" />}
-                      >
+                  <div className="prose max-w-none text-slate-600 text-sm leading-relaxed">
+                    <p>{currentLesson.content || 'Engage with this lesson module and complete all required activities. Progress is saved automatically.'}</p>
+                    <div className="mt-6 flex justify-end">
+                      <Button variant={isCurrentDone ? 'outline' : 'primary'} onClick={handleMarkCompleted}>
                         {isCurrentDone ? 'Completed' : 'Mark as Complete'}
                       </Button>
                     </div>
-
-                    <div className="text-xs text-slate-300 leading-relaxed whitespace-pre-line pt-3 border-t border-slate-800">
-                      {currentLesson?.content ||
-                        'Engage with this lesson module and complete all required activities. Progress is saved automatically.'}
-                    </div>
                   </div>
                 )}
-
                 {activeTab === 'notes' && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-slate-300">
-                        Personal Study Notes (Auto-saved to your browser)
-                      </label>
-                      <span className="text-[10px] text-slate-500">Synced locally</span>
-                    </div>
+                  <div>
                     <textarea
                       rows={6}
                       value={studentNotes}
                       onChange={e => handleSaveNotes(e.target.value)}
-                      placeholder="Write your personal timestamped notes, code snippets, or key takeaways here..."
-                      className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3.5 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans leading-relaxed"
+                      placeholder="Write your personal timestamped notes here..."
+                      className="w-full border border-slate-300 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    <p className="text-xs text-slate-400 mt-2">Saved locally to your browser</p>
                   </div>
                 )}
-
                 {activeTab === 'resources' && (
-                  <div className="space-y-3">
-                    <p className="text-xs text-slate-400">Attached course materials and lesson attachments:</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Paperclip className="w-4 h-4 text-blue-400" />
-                          <div>
-                            <p className="text-xs font-semibold text-white">Lesson Lecture Slides & Cheatsheet</p>
-                            <p className="text-[10px] text-slate-400">PDF • 2.4 MB</p>
-                          </div>
-                        </div>
-                        <Button size="sm" variant="ghost" icon={<Download className="w-3.5 h-3.5" />}>
-                          Download
-                        </Button>
-                      </div>
-
-                      <div className="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Paperclip className="w-4 h-4 text-emerald-400" />
-                          <div>
-                            <p className="text-xs font-semibold text-white">Starter Code & Project Architecture</p>
-                            <p className="text-[10px] text-slate-400">ZIP • 5.1 MB</p>
-                          </div>
-                        </div>
-                        <Button size="sm" variant="ghost" icon={<Download className="w-3.5 h-3.5" />}>
-                          Download
-                        </Button>
-                      </div>
-                    </div>
+                  <div className="text-sm text-slate-500 p-8 text-center bg-slate-50 rounded-xl border border-slate-100">
+                    No resources attached to this lesson.
                   </div>
                 )}
-
                 {activeTab === 'qa' && (
-                  <div className="space-y-4">
-                    <form onSubmit={handleAddQuestion} className="flex gap-2">
+                  <div className="space-y-6">
+                    <form onSubmit={handleAddQuestion} className="flex gap-3">
                       <input
                         type="text"
                         value={newQuestionText}
                         onChange={e => setNewQuestionText(e.target.value)}
-                        placeholder="Ask a question about this lesson..."
-                        className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ask a question..."
+                        className="flex-1 border border-slate-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
-                      <Button type="submit" size="sm" icon={<Send className="w-3.5 h-3.5" />}>
-                        Ask
-                      </Button>
+                      <Button type="submit">Ask</Button>
                     </form>
-
-                    <div className="space-y-3 pt-2">
+                    <div className="space-y-4">
                       {qaQuestions.map(q => (
-                        <div key={q.id} className="p-3.5 rounded-xl bg-slate-800/50 border border-slate-700/60 space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span className="font-semibold text-blue-400">{q.author}</span>
-                            <span className="text-slate-500">{q.time}</span>
+                        <div key={q.id} className="p-4 rounded-xl bg-slate-50 border border-slate-100">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="font-semibold text-slate-900 text-sm">{q.author}</span>
+                            <span className="text-xs text-slate-500">{q.time}</span>
                           </div>
-                          <p className="text-xs text-slate-200">{q.text}</p>
-                          <div className="flex items-center gap-2 text-[10px] text-slate-400 pt-1">
-                            <MessageSquare className="w-3 h-3" />
-                            <span>{q.replies} instructor / peer replies</span>
-                          </div>
+                          <p className="text-sm text-slate-700">{q.text}</p>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>
