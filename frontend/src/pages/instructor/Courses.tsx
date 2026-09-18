@@ -243,6 +243,7 @@ export default function InstructorCourses() {
             </div>
           </div>
         )
+      ) : (
         <div className="bg-white rounded-3xl border border-slate-100 premium-shadow border-t">
           <EmptyState
             icon={BookOpen}
